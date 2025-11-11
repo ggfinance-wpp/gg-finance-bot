@@ -69,7 +69,23 @@ WhatsApp → API Meta → Webhook Fastify → Processamento → MySQL → Respos
 
 ---
 
-## 🔐 Segurança e Privacidade
+## 🔐 Segurança, Privacidade e Isolamento de Usuários
+
+Como o projeto lidará com dados financeiros e mensagens privadas no WhatsApp, a segurança é prioridade máxima. O sistema deve garantir que NENHUM usuário consiga acessar dados de outro, mesmo em caso de falhas, ataques ou má implementação.
+
+✅ Requisitos obrigatórios de segurança
+- Risco	Medida obrigatória
+- Um usuário ver dados de outro	Todas as consultas ao banco devem filtrar pelo user_id sempre
+- Vazamento via API	Nenhum endpoint pode retornar dados sem autenticação/verificação
+- Invasão por requisições manipuladas	Validar TODA entrada de dados (Zod, DTOs, etc)
+- Injeção SQL	Usar ORM ou queries parametrizadas (Prisma/Drizzle/MySQL2)
+- Roubo de sessão	Não armazenar dados sensíveis sem criptografia
+- Vazamento por logs	Não logar mensagens, saldos ou transações brutas
+- Vazamento de banco	Senhas/API Keys em .env e nunca no código
+- Simulação de identidade	Confirmar número do usuário em TODA interação do WhatsApp
+- Ataques de repetição	Implementar limite de requests (rate limit)
+- APIs públicas	Bloquear CORS, permitir apenas origens confiáveis
+
 
 ### Regras essenciais
 
