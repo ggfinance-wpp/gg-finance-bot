@@ -115,15 +115,15 @@ SELECT * FROM transactions WHERE user_id = ?;
 ## ✅ Checklist de Desenvolvimento
 
 ### 1 — Setup
-- [ ] Criar repositório Git
-- [ ] Configurar TypeScript, ESLint e Prettier
-- [ ] Configurar Fastify + Zod + Logger
-- [ ] Estruturar pastas do projeto
+- [x] Criar repositório Git
+- [x] Configurar TypeScript, ESLint e Prettier
+- [x] Configurar Fastify + Zod + Logger
+- [x] Estruturar pastas do projeto
 
 ### 2 — Banco (MySQL)
-- [ ] Criar banco e tabelas
-- [ ] Configurar conexão e migrations
-- [ ] Garantir index e isolamento por `user_id`
+- [x] Criar banco e tabelas
+- [x] Configurar conexão e migrations
+- [x] Garantir index e isolamento por `user_id`
 
 ### 3 — WhatsApp
 - [ ] Criar app no Meta

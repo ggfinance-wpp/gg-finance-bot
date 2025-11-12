@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "db:migrate": "dotenv -e .env -- prisma migrate dev --name init",
+    "db:generate": "dotenv -e .env -- prisma generate",
+    "db:deploy": "npm run db:migrate && npm run db:generate"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "dotenv-cli": "^11.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
