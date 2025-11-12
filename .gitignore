@@ -3,3 +3,5 @@ node_modules
 dist
 logs
 IA-GG-Assistente-Financeiro-Inteligente-via-WhatsApp.pdf
+.wwebjs_auth
+.wwebjs_cache

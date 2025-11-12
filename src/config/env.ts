@@ -7,7 +7,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   WHATSAPP_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_ID: z.string().optional(),
-  API_KEY: z.string()
+  API_KEY: z.string(),
+  WEBHOOK_SECRET:z.string()
 });
 
 export const env = envSchema.parse(process.env);
