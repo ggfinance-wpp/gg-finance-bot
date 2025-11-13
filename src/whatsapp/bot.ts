@@ -1,7 +1,7 @@
 import { Client, LocalAuth } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import { logger } from "../utils/logger";
-import { OrquestradorConversa } from "../services/OrquestradorConversa";
+import { BotService } from "../services/bot.service"; // AGORA USAMOS O NOVO FLUXO
 
 export const client = new Client({
   authStrategy: new LocalAuth(),
@@ -24,28 +24,32 @@ export function startWhatsAppBot() {
   client.on("auth_failure", () => logger.error("❌ Falha na autenticação"));
 
   client.on("message", async (msg) => {
-    console.log(`📩 ${msg.from}: ${msg.body}`);
-    // Ignora mensagens de grupos
+    const telefone = msg.from.replace("@c.us", "");
+    const mensagem = msg.body;
+
+    console.log(`📩 ${telefone}: ${mensagem}`);
+
+    // ❌ Ignora mensagens de grupos
     if (msg.from.includes("@g.us")) {
       console.log("📵 Mensagem de grupo ignorada.");
       return;
     }
-    if (msg.from.includes("554192124976@c.us")) {
-      console.log("📵 Mensagem de Suzy ignorada.");
+
+    // 🔒 Número autorizado (SOMENTE VOCÊ)
+    const numeroAutorizado = "558597280182"; // <- SEU NÚMERO AQUI
+
+    // ❌ Ignora qualquer número que não seja o seu
+    if (telefone !== numeroAutorizado) {
+      console.log(`🚫 Ignorando número não autorizado: ${telefone}`);
       return;
-    }
-    if (msg.from.includes("554196987208@c.us")) {
-      console.log("📵 Mensagem de Outros ignorada.");
-      return;
-    }
-    if (msg.from.includes("558597280182@c.us")) {
-      try {
-        await OrquestradorConversa.processar(msg.from, msg.body);
-      } catch (error) {
-        console.error("❌ Erro ao processar mensagem:", error);
-      }
     }
 
+    // ✔️ Processa com a IA
+    try {
+      await BotService.processarMensagem(telefone, mensagem);
+    } catch (error) {
+      console.error("❌ Erro ao processar mensagem:", error);
+    }
   });
 
   client.initialize();
