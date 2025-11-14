@@ -18,6 +18,8 @@ model Usuario {
   recorrencias Recorrencia[]
   relatorios  Relatorio[]
   logs        LogBot[]
+  lembretes    Lembrete[]  @relation("UsuarioLembretes")
+
 }
 
 model Categoria {
@@ -34,20 +36,35 @@ model Categoria {
 }
 
 model Transacao {
-  id          String   @id @default(uuid())
-  usuarioId   String
-  categoriaId String?
-  tipo        TipoTransacao
-  valor       Decimal  @db.Decimal(10, 2)
-  descricao   String?
-  data        DateTime
-  recorrente  Boolean  @default(false)
-  criadoEm    DateTime @default(now())
+  id            String    @id @default(uuid())
+  usuarioId     String
+  categoriaId   String?
+  tipo          TipoTransacao
+  valor         Decimal   @db.Decimal(10, 2)
+  descricao     String?
+  
+  data          DateTime          // data do lançamento efetivo
 
-  usuario     Usuario      @relation(fields: [usuarioId], references: [id])
-  categoria   Categoria?   @relation(fields: [categoriaId], references: [id])
-  recorrencia Recorrencia?
+  // 💡 NOVO: Data futura para cobrança/agendamento
+  dataAgendada  DateTime?         // data para a IA lembrar/cobrar
+
+  // 💡 NOVO: Status para controle financeiro
+  status        StatusTransacao   @default(pendente)
+
+  recorrente    Boolean    @default(false)
+  criadoEm      DateTime   @default(now())
+
+  usuario       Usuario     @relation(fields: [usuarioId], references: [id])
+  categoria     Categoria?  @relation(fields: [categoriaId], references: [id])
+  recorrencia   Recorrencia?
 }
+
+enum StatusTransacao {
+  pendente
+  concluida
+  cancelada
+}
+
 
 model Recorrencia {
   id           String   @id @default(uuid())
@@ -82,6 +99,18 @@ model LogBot {
 
   usuario   Usuario @relation(fields: [usuarioId], references: [id])
 }
+
+model Lembrete {
+  id          String    @id @default(uuid())
+  usuarioId   String
+  mensagem    String
+  dataAlvo    DateTime         // Quando a IA deve avisar
+  criadoEm    DateTime @default(now())
+  enviado     Boolean  @default(false) // para não avisar 2x
+
+  usuario     Usuario @relation("UsuarioLembretes", fields: [usuarioId], references: [id])
+}
+
 
 enum TipoTransacao {
   receita

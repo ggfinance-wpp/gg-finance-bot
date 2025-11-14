@@ -1,25 +1,34 @@
-import { PrismaClient, Transacao, TipoTransacao } from "@prisma/client";
+import { PrismaClient, Transacao, TipoTransacao, StatusTransacao } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class TransacaoRepository {
     static async criar(dados: {
         usuarioId: string;
-        categoriaId?: string;
+        categoriaId?: string | null;   // ⬅️ permitir null
         tipo: TipoTransacao;
         valor: number;
         descricao?: string;
         data?: Date;
+        dataAgendada?: Date | null;
+        status?: StatusTransacao; // NOVO
         recorrente?: boolean;
     }): Promise<Transacao> {
         return prisma.transacao.create({
             data: {
-                ...dados,
+                usuarioId: dados.usuarioId,
+                categoriaId: dados.categoriaId ?? null,
+                tipo: dados.tipo,
+                valor: dados.valor,
+                descricao: dados.descricao ?? null,
                 data: dados.data ?? new Date(),
+                dataAgendada: dados.dataAgendada ?? null,
+                status: dados.status ?? "concluida", // padrão
                 recorrente: dados.recorrente ?? false,
             },
         });
     }
+
 
     static async listarPorUsuario(usuarioId: string): Promise<Transacao[]> {
         return prisma.transacao.findMany({

@@ -4,8 +4,16 @@ import { validarValorTransacao } from "../../utils/seguranca.utils";
 import { UsuarioRepository } from "../../repositories/usuario.repository";
 
 export class RegistrarDespesaHandler {
-  static async executar(telefone: string, usuarioId: string, valor: number, descricao?: string) {
-    // 🔒 1. Garantir que o usuário existe
+
+  static async executar(
+    telefone: string,
+    usuarioId: string,
+    valor: number,
+    descricao?: string,
+    dataAgendada?: Date | null,
+    categoriaId?: string
+  ) {
+
     const usuario = await UsuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
       return EnviadorWhatsApp.enviar(
@@ -14,26 +22,33 @@ export class RegistrarDespesaHandler {
       );
     }
 
-    // 🧩 2. Validar o valor
     if (!validarValorTransacao(valor)) {
       return EnviadorWhatsApp.enviar(
         telefone,
-        "❌ Valor inválido. Digite um número positivo e menor que R$1.000.000,00.\nExemplo: *3 400*"
+        "❌ Valor inválido. Digite algo como 25, 100, 350.90...\nExemplo: *300 mercado*"
       );
     }
 
-    // 🧾 3. Registrar despesa no banco
     await TransacaoRepository.criar({
       usuarioId,
       tipo: "despesa",
       valor,
-      descricao
+      descricao,
+      categoriaId: categoriaId ?? null,
+      dataAgendada,
+      status: dataAgendada ? "pendente" : "concluida"
     });
 
-    // ✅ 4. Confirmar ao usuário
+    if (dataAgendada) {
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        `📅 Despesa agendada!\n💸 Valor: R$ ${valor.toFixed(2)}\n🔔 Vou te lembrar em ${dataAgendada.toLocaleDateString()}`
+      );
+    }
+
     return EnviadorWhatsApp.enviar(
       telefone,
-      `✅ *Despesa registrada com sucesso!*\n💸 Valor: R$ ${valor.toFixed(2)}`
+      `💸 *Despesa registrada!*\nValor: R$ ${valor.toFixed(2)}`
     );
   }
 }
