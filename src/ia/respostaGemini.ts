@@ -12,7 +12,7 @@ Gere uma resposta amigável, natural e clara.
 
 Contexto:
 ${contexto}
-    `;
+    `;  
 
     const out = await modelo.generateContent(prompt);
     return out.response.text();
