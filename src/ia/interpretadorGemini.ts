@@ -176,8 +176,19 @@ Agora retorne apenas o JSON.
 `;
 
     const resposta = await modelo.generateContent(prompt);
-    const texto = resposta.response.text().trim();
 
+    let texto = resposta.response.text().trim();    // limpeza de markdown
+    texto = texto
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .replace(/\\n/g, "\n")
+      .trim();
+
+    // tentar extrair somente o JSON mesmo que tenha texto fora
+    const match = texto.match(/\{[\s\S]*\}$/);
+    if (match) {
+      texto = match[0];
+    }
     try {
       return JSON.parse(texto);
     } catch (e) {
