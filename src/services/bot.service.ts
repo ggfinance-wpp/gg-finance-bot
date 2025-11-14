@@ -5,7 +5,7 @@ export class BotService {
   static async processarMensagem(telefone: string, mensagem: string) {
 
     // 🔒 Número autorizado (COLOQUE O SEU)
-    const numeroAutorizado = "558597280182"; // <- seu número aqui
+    const numeroAutorizado = "558598500014"; // <- seu número aqui
 
     // ❌ Se NÃO for o número autorizado → simplesmente ignora
     if (telefone !== numeroAutorizado) {

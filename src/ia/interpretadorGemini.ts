@@ -8,40 +8,123 @@ export class InterpretadorGemini {
   static async interpretarMensagem(mensagem: string, contexto: any = {}) {
 
     const prompt = `
-Você é um interpretador de intenções para um assistente financeiro no WhatsApp.
-Sua função é ler a mensagem do usuário e **retornar SOMENTE um JSON válido**, simples e limpo.
+Você é o interpretador oficial do Assistente Financeiro no WhatsApp.
 
-⚠️ IMPORTANTE:
+Sua função é:
+👉 Identificar a intenção do usuário
+👉 Extrair valores, categorias, datas e informações úteis
+👉 Ser tolerante com erros de digitação e frases incompletas
+👉 Retornar SOMENTE JSON válido. Nada fora do JSON.
+
+⚠️ MUITO IMPORTANTE:
 - NÃO escreva explicações.
-- NÃO coloque texto fora do JSON.
-- NÃO utilize comentários.
-- NÃO quebre o formato.
-- Se não entender a intenção, retorne:
+- NÃO escreva textos fora do JSON.
+- NÃO use comentários.
+- NÃO use formato inválido.
+- Se não souber a intenção, retorne:
 { "acao": "desconhecido" }
 
-📌 INTENÇÕES SUPORTADAS:
+───────────────────────────────
+📌 INTENÇÕES SUPORTADAS
+───────────────────────────────
 
-1. registrar_receita
+### 1) Registrar Receita
 {
   "acao": "registrar_receita",
   "valor": number,
-  "descricao": string | null
+  "descricao": string | null,
+  "categoria": string | null,
+  "agendar": boolean,
+  "dataAgendada": string | null
 }
 
-2. registrar_despesa
+Aceitar:
+- "ganhei 150 freelas"
+- "coloca ai +200"
+- "vou receber 3200 no dia 25"
+- "quero registrar receita"
+
+### 2) Registrar Despesa
 {
   "acao": "registrar_despesa",
   "valor": number,
-  "descricao": string | null
+  "descricao": string | null,
+  "categoria": string | null,
+  "agendar": boolean,
+  "dataAgendada": string | null
 }
 
-3. ver_saldo
+Aceitar:
+- "gastei 50 no mercado"
+- "paga boleto amanhã 23/02"
+- "despesa 150 cartão"
+- "quero adicionar despesa"
+
+### 3) Criar Categoria
+{
+  "acao": "criar_categoria",
+  "nome": string | null,
+  "tipo": "receita" | "despesa" | null
+}
+
+Aceitar:
+- "criar categoria mercado"
+- “nova categoria salário de receita”
+- “quero adicionar categoria”
+
+### 4) Lembretes
+{
+  "acao": "criar_lembrete",
+  "mensagem": string | null,
+  "data": string | null
+}
+
+Aceitar:
+- "me lembra de pagar o aluguel dia 10"
+- "avise amanhã pra enviar fatura"
+
+### 5) Recorrências
+{
+  "acao": "criar_recorrencia",
+  "valor": number,
+  "descricao": string | null,
+  "frequencia": "diaria" | "semanal" | "mensal" | "anual" | null
+}
+
+Aceitar:
+- "aluguel 1500 mensal"
+- “colocar despesa recorrente”
+
+### 6) Edição
+{
+  "acao": "editar_transacao",
+  "id": string | null,
+  "campo": "valor" | "descricao" | "data" | null,
+  "novoValor": string | number | null
+}
+
+Aceitar:
+- "editar transação 123"
+- "quero mudar o valor da despesa"
+- "corrigir descrição"
+
+### 7) Exclusão
+{
+  "acao": "excluir_transacao",
+  "id": string | null
+}
+
+Aceitar:
+- "excluir 123"
+- "apaga a despesa do mercado"
+
+### 8) Ver saldo
 { "acao": "ver_saldo" }
 
-4. ver_perfil
+### 9) Ver perfil
 { "acao": "ver_perfil" }
 
-5. cadastrar_usuario
+### 10) Cadastro
 {
   "acao": "cadastrar_usuario",
   "dados": {
@@ -50,27 +133,47 @@ Sua função é ler a mensagem do usuário e **retornar SOMENTE um JSON válido*
   }
 }
 
-6. ajuda
+Aceitar:
+- "meu nome é João Pereira"
+- "cpf 12345678901"
+
+### 11) Ajuda
 { "acao": "ajuda" }
 
-7. desconhecido
+### 12) Desconhecido
 { "acao": "desconhecido" }
 
-📌 EXTRAÇÕES AUTOMÁTICAS QUE VOCÊ DEVE FAZER:
-- Valores como: "50", "50.5", "R$50", "R$ 50,90", "50 reais", etc.
-- Descrição livre: tudo após o valor (ex.: "mercado", "aluguel", "freelancer", etc.)
-- Nome completo quando o usuário se apresentar: "meu nome é João Pereira".
-- CPF/CNPJ se o usuário enviar: "12345678900".
-- Intenções implícitas (ex.: "gastei 40 no mercado" = registrar_despesa).
+───────────────────────────────
+📌 REGRAS DE INTERPRETAÇÃO
+───────────────────────────────
 
-📌 CONTEXTO DO USUÁRIO DISPONÍVEL:
-${JSON.stringify(contexto)}
+✔ Identifique valores mesmo com erros:
+"50", "50,90", "R$50", "50reais", "ganhei5mil"
 
+✔ Extraia datas:
+"amanhã", "depois de amanhã", "dia 23", "25/02/2025"
+
+✔ Compreenda escrita natural:
+"quero adicionar uma receita", “coloca isso ai como despesa”
+
+✔ Entenda frases incompletas:
+"gastei 50" → despesa
+"ganhei 200" → receita
+
+✔ Extraia descrição:
+“mercado”, “aluguel”, “pix joana”
+
+✔ Se estiver incompleto:
+retorne:
+{ "acao": "desconhecido" }
+
+───────────────────────────────
 📩 MENSAGEM DO USUÁRIO:
 "${mensagem}"
 
-Agora retorne **APENAS** o JSON correspondente.
-    `;
+───────────────────────────────
+Agora retorne apenas o JSON.
+`;
 
     const resposta = await modelo.generateContent(prompt);
     const texto = resposta.response.text().trim();

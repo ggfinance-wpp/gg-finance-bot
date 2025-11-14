@@ -59,6 +59,14 @@ model Transacao {
   recorrencia   Recorrencia?
 }
 
+model Contexto {
+  telefone String @id
+  etapa    String
+  dados    String
+  criadoEm DateTime @default(now())
+}
+
+
 enum StatusTransacao {
   pendente
   concluida
