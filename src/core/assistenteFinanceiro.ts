@@ -128,7 +128,12 @@ export class AssistenteFinanceiro {
         return CategoriaHandler.iniciarCriacao(telefone);
 
       case "criar_lembrete":
-        return LembreteHandler.iniciar(telefone);
+        return LembreteHandler.iniciar(
+          telefone,
+          usuario!.id,
+          intent.mensagem,
+          intent.data
+        );
 
       case "criar_recorrencia":
         // handler específico quando você implementar
