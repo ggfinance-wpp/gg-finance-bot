@@ -2,6 +2,7 @@ import { TransacaoRepository } from "../../repositories/transacao.repository";
 import { EnviadorWhatsApp } from "../EnviadorWhatsApp";
 import { validarValorTransacao } from "../../utils/seguranca.utils";
 import { UsuarioRepository } from "../../repositories/usuario.repository";
+import { CategoriaRepository } from "../../repositories/categoria.repository"; // <-- importante
 
 export class RegistrarDespesaHandler {
 
@@ -10,9 +11,9 @@ export class RegistrarDespesaHandler {
     usuarioId: string,
     valor: number,
     descricao?: string,
-    agendar?: boolean,               // 👈 vem da IA (true/false)
-    dataAgendadaTexto?: string | null, // 👈 vem da IA (string ou null)
-    categoriaId?: string
+    agendar?: boolean,
+    dataAgendadaTexto?: string | null,
+    categoriaId?: string | null
   ) {
 
     const usuario = await UsuarioRepository.buscarPorId(usuarioId);
@@ -30,20 +31,34 @@ export class RegistrarDespesaHandler {
       );
     }
 
-    // 🔄 Converter agendar + dataAgendadaTexto → Date | null
+    // ---------------------------------------------------------
+    // 📌 1) SE O USUÁRIO NÃO INFORMAR CATEGORIA → usar “Outros”
+    // ---------------------------------------------------------
+    if (!categoriaId) {
+      let categoria = await CategoriaRepository.buscarPorNome(usuarioId, "Outros");
+
+      if (!categoria) {
+        categoria = await CategoriaRepository.criar({
+          usuarioId,
+          nome: "Outros",
+          tipo: "despesa"
+        });
+      }
+
+      categoriaId = categoria.id;
+    }
+
+    // ---------------------------------------------------------
+    // 📌 2) TRATAR AGENDAMENTO
+    // ---------------------------------------------------------
     let dataAgendada: Date | null = null;
 
     if (agendar && dataAgendadaTexto) {
       const parsed = new Date(dataAgendadaTexto);
 
-      // se a data vier num formato que o JS entende
       if (!isNaN(parsed.getTime())) {
         dataAgendada = parsed;
       } else {
-        // aqui você pode escolher:
-        // - ou tratar como despesa normal (sem agendamento)
-        // - ou pedir pro usuário reenviar a data num formato válido
-        // Vou optar por pedir novamente, pra não fazer nada "escondido".
         return EnviadorWhatsApp.enviar(
           telefone,
           "📅 Não consegui entender a data que você informou.\n" +
@@ -55,16 +70,22 @@ export class RegistrarDespesaHandler {
 
     const status = dataAgendada ? "pendente" : "concluida";
 
+    // ---------------------------------------------------------
+    // 📌 3) SALVAR DESPESA
+    // ---------------------------------------------------------
     await TransacaoRepository.criar({
       usuarioId,
       tipo: "despesa",
       valor,
-      descricao,
-      categoriaId: categoriaId ?? null,
-      dataAgendada,           // ✅ aqui SEMPRE vai Date ou null
+      descricao: descricao ?? undefined,
+      categoriaId,
+      dataAgendada,
       status
     });
 
+    // ---------------------------------------------------------
+    // 📌 4) RESPOSTA
+    // ---------------------------------------------------------
     if (dataAgendada) {
       return EnviadorWhatsApp.enviar(
         telefone,
@@ -76,8 +97,7 @@ export class RegistrarDespesaHandler {
 
     return EnviadorWhatsApp.enviar(
       telefone,
-      `💸 *Despesa registrada!*\n` +
-      `Valor: R$ ${valor.toFixed(2)}`
+      `💸 *Despesa registrada!*\nValor: R$ ${valor.toFixed(2)}`
     );
   }
 }

@@ -89,4 +89,17 @@ export class LembreteRepository {
             where: { id },
         });
     }
+
+    // Listar lembretes futuros
+    static async listarFuturos(usuarioId: string) {
+        return prisma.lembrete.findMany({
+            where: {
+                usuarioId,
+                enviado: false,
+                dataAlvo: { gte: new Date() }
+            },
+            orderBy: { dataAlvo: "asc" }
+        });
+    }
+
 }
