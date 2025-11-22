@@ -232,7 +232,6 @@ Agora retorne APENAS o JSON.
 
     const resposta = await modelo.generateContent(prompt);
 
-
     let texto = resposta.response.text().trim();    // limpeza de markdown
     texto = texto
       .replace(/```json/gi, "")
