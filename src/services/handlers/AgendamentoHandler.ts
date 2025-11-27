@@ -5,7 +5,7 @@ import { TransacaoRepository } from "../../repositories/transacao.repository";
 export class AgendamentoHandler {
 
   static async pedirData(telefone: string) {
-    await ContextoRepository.salvar(telefone, "informar_data_agendada");
+    await ContextoRepository.salvar(telefone, { etapa: "informar_data_agendada" });
 
     return EnviadorWhatsApp.enviar(
       telefone,
@@ -26,13 +26,22 @@ export class AgendamentoHandler {
     );
 
     const ctx = await ContextoRepository.obter(telefone);
-    const dados = JSON.parse(ctx!.dados as string);
+    if (!ctx) {
+      return EnviadorWhatsApp.enviar(telefone, "⚠ Nenhum dado encontrado.");
+    }
+
+    const dados = ctx.dados as {
+      tipo: "receita" | "despesa";
+      valor: number;
+      descricao?: string;
+    };
 
     await TransacaoRepository.criar({
       usuarioId,
       tipo: dados.tipo,
       valor: dados.valor,
       descricao: dados.descricao,
+      data,
       dataAgendada: data,
       status: "pendente"
     });

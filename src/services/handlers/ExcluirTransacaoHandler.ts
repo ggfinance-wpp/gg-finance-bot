@@ -16,7 +16,6 @@ export class ExcluirTransacaoHandler {
     );
   }
 
-
   static async confirmar(telefone: string, id: string) {
     await ContextoRepository.salvar(telefone, {
       etapa: "confirmar_exclusao",
@@ -29,17 +28,20 @@ export class ExcluirTransacaoHandler {
     );
   }
 
-
   static async executar(telefone: string, confirmacao: string) {
     const ctx = await ContextoRepository.obter(telefone);
-    const { id } = ctx!.dados; // ctx.dados já é objeto, NÃO é JSON string
+    const dados = ctx?.dados as { id: string };
+
+    if (!dados?.id) {
+      return EnviadorWhatsApp.enviar(telefone, "⚠️ Não encontrei a transação.");
+    }
 
     if (!confirmacao.toLowerCase().startsWith("s")) {
       await ContextoRepository.limpar(telefone);
       return EnviadorWhatsApp.enviar(telefone, "Operação cancelada.");
     }
 
-    await TransacaoRepository.deletar(id);
+    await TransacaoRepository.deletar(dados.id);
     await ContextoRepository.limpar(telefone);
 
     return EnviadorWhatsApp.enviar(

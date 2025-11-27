@@ -5,7 +5,7 @@ import { ContextoRepository } from "../../repositories/contexto.repository";
 export class CategoriaHandler {
 
   static async iniciarCriacao(telefone: string) {
-    await ContextoRepository.salvar(telefone, "criando_categoria_nome");
+    await ContextoRepository.salvar(telefone, { etapa: "criando_categoria_nome" });
     return EnviadorWhatsApp.enviar(
       telefone,
       "📂 Qual o *nome da categoria*?"
@@ -14,7 +14,7 @@ export class CategoriaHandler {
 
   static async salvarNome(telefone: string, nome: string) {
     await ContextoRepository.atualizarDados(telefone, { nome });
-    await ContextoRepository.salvar(telefone, "criando_categoria_tipo");
+    await ContextoRepository.salvar(telefone, { etapa: "criando_categoria_tipo" });
 
     return EnviadorWhatsApp.enviar(
       telefone,
@@ -23,7 +23,6 @@ export class CategoriaHandler {
   }
 
   static async salvarTipo(telefone: string, tipoMsg: string, usuarioId: string) {
-
     const tipo = tipoMsg.startsWith("1") ? "receita" :
                  tipoMsg.startsWith("2") ? "despesa" : null;
 
@@ -32,7 +31,7 @@ export class CategoriaHandler {
     }
 
     const ctx = await ContextoRepository.obter(telefone);
-    const { nome } = JSON.parse(ctx!.dados as string);
+    const { nome } = ctx!.dados as { nome: string };
 
     await CategoriaRepository.criar({
       usuarioId,

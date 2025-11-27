@@ -324,4 +324,6 @@ src/
 ✅ Prepara caminho para IA  
 
 ---
-
+# Feats e Fix:
+## Permitir vários registros de receita ou despesa numa mesma mensagem.
+## Verificar categorização automática.

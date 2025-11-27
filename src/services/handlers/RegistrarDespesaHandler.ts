@@ -79,6 +79,7 @@ export class RegistrarDespesaHandler {
       valor,
       descricao: descricao ?? undefined,
       categoriaId,
+      data: new Date(),              // 👈 obrigatório
       dataAgendada,
       status
     });

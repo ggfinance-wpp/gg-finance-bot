@@ -48,9 +48,11 @@ export class RegistrarReceitaHandler {
       valor,
       descricao: descricao ?? "Receita sem descrição",
       categoriaId,
+      data: new Date(),              // 👈 OBRIGATÓRIO
       dataAgendada: dataAgendada ?? null,
       status: dataAgendada ? "pendente" : "concluida"
     });
+
 
     // -------------------------------
     // 📌 Resposta ao usuário

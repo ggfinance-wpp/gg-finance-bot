@@ -5,7 +5,7 @@ import { EnviadorWhatsApp } from "../EnviadorWhatsApp";
 export class EditarTransacaoHandler {
 
   static async iniciar(telefone: string) {
-    await ContextoRepository.salvar(telefone, "editar_transacao_id");
+    await ContextoRepository.salvar(telefone, { etapa: "editar_transacao_id" });
 
     return EnviadorWhatsApp.enviar(
       telefone,
@@ -23,7 +23,10 @@ export class EditarTransacaoHandler {
       );
     }
 
-    await ContextoRepository.salvar(telefone, "editar_transacao_opcao", { id });
+    await ContextoRepository.salvar(telefone, {
+      etapa: "editar_transacao_opcao",
+      dados: { id }
+    });
 
     return EnviadorWhatsApp.enviar(
       telefone,
@@ -33,7 +36,11 @@ export class EditarTransacaoHandler {
 
   static async editarValor(telefone: string, valor: number) {
     const ctx = await ContextoRepository.obter(telefone);
-    const { id } = JSON.parse(ctx!.dados as string);
+    if (!ctx?.dados) {
+      return EnviadorWhatsApp.enviar(telefone, "⚠ Nenhuma transação selecionada.");
+    }
+
+    const { id } = ctx.dados as { id: string };
 
     await TransacaoRepository.atualizar(id, { valor });
 
@@ -44,7 +51,11 @@ export class EditarTransacaoHandler {
 
   static async editarDescricao(telefone: string, desc: string) {
     const ctx = await ContextoRepository.obter(telefone);
-    const { id } = JSON.parse(ctx!.dados as string);
+    if (!ctx?.dados) {
+      return EnviadorWhatsApp.enviar(telefone, "⚠ Nenhuma transação selecionada.");
+    }
+
+    const { id } = ctx.dados as { id: string };
 
     await TransacaoRepository.atualizar(id, { descricao: desc });
 

@@ -1,124 +1,96 @@
-import { PrismaClient, Lembrete } from "@prisma/client";
+import { Lembrete, Prisma } from "@prisma/client";
+import { prisma } from "../infra/prisma";
 
-const prisma = new PrismaClient();
+type CriarLembreteInput = {
+  usuarioId: string;
+  mensagem: string;
+  valor?: number | null;
+  dataAlvo: Date; // obrigatório
+};
 
 export class LembreteRepository {
+  static async criar(dados: CriarLembreteInput): Promise<Lembrete> {
+    const data: Prisma.LembreteUncheckedCreateInput = {
+      usuarioId: dados.usuarioId,
+      mensagem: dados.mensagem,
+      valor: dados.valor ?? null,
+      enviado: false,
+      dataAlvo: dados.dataAlvo, // sempre válido
+    };
 
-    /** 🟢 Criar lembrete */
-    static async criar(dados: {
-        usuarioId: string;
-        mensagem: string;
-        valor?: number | null;
-        data?: string | null;
-        dataAlvo?: Date | null;
-    }): Promise<Lembrete> {
+    return prisma.lembrete.create({ data });
+  }
 
-        let dataFinal: Date | null = null;
+  static async buscarPorId(id: string): Promise<Lembrete | null> {
+    return prisma.lembrete.findUnique({
+      where: { id },
+    });
+  }
 
-        // Prioridade 1: dataAlvo explícita (Date)
-        if (dados.dataAlvo instanceof Date) {
-            dataFinal = dados.dataAlvo;
-        }
+  static async listarPorUsuario(usuarioId: string): Promise<Lembrete[]> {
+    return prisma.lembrete.findMany({
+      where: { usuarioId },
+      orderBy: { dataAlvo: "asc" },
+    });
+  }
 
-        // Prioridade 2: data textual convertida via Date()
-        else if (dados.data) {
-            const convertida = new Date(dados.data);
-            if (!isNaN(convertida.getTime())) {
-                dataFinal = convertida;
-            }
-        }
+  static async listarFuturos(usuarioId: string): Promise<Lembrete[]> {
+    return prisma.lembrete.findMany({
+      where: {
+        usuarioId,
+        enviado: false,
+        dataAlvo: { gte: new Date() },
+      },
+      orderBy: { dataAlvo: "asc" },
+    });
+  }
 
-        const data: any = {
-            usuarioId: dados.usuarioId,
-            mensagem: dados.mensagem,
-            valor: dados.valor ?? null,
-            enviado: false
-        };
+  static async buscarPorTextoEData(
+    usuarioId: string,
+    texto: string,
+    data: Date
+  ): Promise<Lembrete[]> {
+    const todos = await prisma.lembrete.findMany({
+      where: {
+        usuarioId,
+        dataAlvo: data,
+      },
+    });
 
-        if (dataFinal !== null) {
-            data.dataAlvo = dataFinal;
-        }
+    const t = texto.toLowerCase();
+    return todos.filter((l) => l.mensagem.toLowerCase().includes(t));
+  }
 
-        return prisma.lembrete.create({ data });
-    }
+  static async buscarSemData(
+    usuarioId: string,
+    texto: string
+  ): Promise<Lembrete[]> {
+    const todos = await prisma.lembrete.findMany({
+      where: { usuarioId },
+    });
 
-    /** 🟡 Buscar por ID */
-    static async buscarPorId(id: string): Promise<Lembrete | null> {
-        return prisma.lembrete.findUnique({
-            where: { id }
-        });
-    }
+    const t = texto.toLowerCase();
+    return todos.filter((l) => l.mensagem.toLowerCase().includes(t));
+  }
 
-    /** 🟣 Listar lembretes do usuário */
-    static async listarPorUsuario(usuarioId: string): Promise<Lembrete[]> {
-        return prisma.lembrete.findMany({
-            where: { usuarioId },
-            orderBy: { dataAlvo: "asc" }
-        });
-    }
+  static async marcarComoEnviado(id: string): Promise<Lembrete> {
+    return prisma.lembrete.update({
+      where: { id },
+      data: { enviado: true },
+    });
+  }
 
-    /** 🔵 Buscar lembretes futuros */
-    static async listarFuturos(usuarioId: string) {
-        return prisma.lembrete.findMany({
-            where: {
-                usuarioId,
-                enviado: false,
-                dataAlvo: { gte: new Date() }
-            },
-            orderBy: { dataAlvo: "asc" }
-        });
-    }
+  static async atualizar(
+    id: string,
+    dados: Prisma.LembreteUncheckedUpdateInput
+  ): Promise<Lembrete> {
+    return prisma.lembrete.update({
+      where: { id },
+      data: dados,
+    });
+  }
 
-    /** 🔍 Buscar lembrete por texto + data (para exclusão inteligente) */
-    /** 🔍 Buscar lembrete por texto + data (case-insensitive manual) */
-    static async buscarPorTextoEData(usuarioId: string, texto: string, data: Date) {
-        const todos = await prisma.lembrete.findMany({
-            where: {
-                usuarioId,
-                dataAlvo: data
-            }
-        });
-
-        const t = texto.toLowerCase();
-
-        return todos.filter(l =>
-            l.mensagem.toLowerCase().includes(t)
-        );
-    }
-
-    /** 🔍 Buscar lembretes apenas pelo texto (case-insensitive manual) */
-    static async buscarSemData(usuarioId: string, texto: string) {
-        const todos = await prisma.lembrete.findMany({
-            where: { usuarioId }
-        });
-
-        const t = texto.toLowerCase();
-
-        return todos.filter(l =>
-            l.mensagem.toLowerCase().includes(t)
-        );
-    }
-
-    /** 🟠 Marcar como enviado */
-    static async marcarComoEnviado(id: string): Promise<Lembrete> {
-        return prisma.lembrete.update({
-            where: { id },
-            data: { enviado: true }
-        });
-    }
-
-    /** 🟤 Atualizar lembrete */
-    static async atualizar(id: string, dados: Partial<Lembrete>): Promise<Lembrete> {
-        return prisma.lembrete.update({
-            where: { id },
-            data: dados
-        });
-    }
-
-    /** 🔴 Deletar lembrete */
-    static async deletar(id: string): Promise<Lembrete> {
-        return prisma.lembrete.delete({
-            where: { id }
-        });
-    }
+  static async deletar(id: string): Promise<Lembrete> {
+    return prisma.lembrete.delete({ where: { id } });
+  }
 }

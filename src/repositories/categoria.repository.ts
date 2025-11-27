@@ -1,65 +1,66 @@
-// repositories/CategoriaRepository.ts
-import { PrismaClient, Categoria, TipoTransacao } from "@prisma/client";
+import { Prisma, Categoria, TipoTransacao } from "@prisma/client";
+import { prisma } from "../infra/prisma";
 
-const prisma = new PrismaClient();
+type CriarCategoriaInput = {
+  usuarioId: string;
+  nome: string;
+  tipo: TipoTransacao;
+  icone?: string | null;
+  cor?: string | null;
+};
 
 export class CategoriaRepository {
+  static async criar(dados: CriarCategoriaInput): Promise<Categoria> {
+    const data: Prisma.CategoriaUncheckedCreateInput = {
+      usuarioId: dados.usuarioId,
+      nome: dados.nome,
+      tipo: dados.tipo,
+      icone: dados.icone ?? null,
+      cor: dados.cor ?? null,
+    };
 
-  // Criar categoria
-  static async criar(dados: {
-    usuarioId: string;
-    nome: string;
-    tipo: TipoTransacao;
-    icone?: string | null;
-    cor?: string | null;
-  }): Promise<Categoria> {
-    return prisma.categoria.create({
-      data: {
-        usuarioId: dados.usuarioId,
-        nome: dados.nome,
-        tipo: dados.tipo,
-        icone: dados.icone ?? null,
-        cor: dados.cor ?? null,
-      },
-    });
+    return prisma.categoria.create({ data });
   }
 
-  // Buscar por nome (case insensitive sem mode)
-  static async buscarPorNome(usuarioId: string, nome: string): Promise<Categoria | null> {
+  static async buscarPorNome(
+    usuarioId: string,
+    nome: string
+  ): Promise<Categoria | null> {
     const nomeNormalizado = nome.trim().toLowerCase();
 
     const categorias = await prisma.categoria.findMany({
-      where: { usuarioId }
+      where: { usuarioId },
     });
 
-    return categorias.find(
-      c => c.nome.trim().toLowerCase() === nomeNormalizado
-    ) ?? null;
+    return (
+      categorias.find(
+        (c) => c.nome.trim().toLowerCase() === nomeNormalizado
+      ) ?? null
+    );
   }
 
-  // Buscar por ID
   static async buscarPorId(id: string): Promise<Categoria | null> {
     return prisma.categoria.findUnique({ where: { id } });
   }
 
-  // Listar categorias do usuário
-  static async listarDoUsuario(usuarioId: string) {
+  static async listarDoUsuario(usuarioId: string): Promise<Categoria[]> {
     return prisma.categoria.findMany({
       where: { usuarioId },
-      orderBy: { criadoEm: "desc" }
+      orderBy: { criadoEm: "desc" },
     });
   }
 
-  // Excluir categoria
-  static async deletar(id: string) {
+  static async deletar(id: string): Promise<Categoria> {
     return prisma.categoria.delete({ where: { id } });
   }
 
-  // Editar categoria
-  static async atualizar(id: string, dados: Partial<Categoria>) {
+  static async atualizar(
+    id: string,
+    dados: Prisma.CategoriaUncheckedUpdateInput
+  ): Promise<Categoria> {
     return prisma.categoria.update({
       where: { id },
-      data: dados
+      data: dados,
     });
   }
 }

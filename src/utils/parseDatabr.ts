@@ -43,6 +43,22 @@ export function parseDataPtBr(texto: string): Date | null {
         return new Date(anoAtual, mesAtual + 1, dia);
     }
 
+    // “próximo mês dia 5”
+    const mProxMes2 = texto.match(/(pr[oó]ximo m[eê]s|m[eê]s que vem).*(?:dia\s+)?(\d{1,2})/);
+    if (mProxMes2) {
+        const dia = Number(mProxMes2[2]);
+        return new Date(anoAtual, mesAtual + 1, dia);
+    }
+
+
+    // “dia 30 desse mês”, “30 do mês atual”
+    const mMesAtual = texto.match(/(?:dia\s+)?(\d{1,2}).*(desse m[eê]s|do m[eê]s atual|m[eê]s atual)/);
+    if (mMesAtual) {
+        const dia = Number(mMesAtual[1]);
+        return new Date(anoAtual, mesAtual, dia);
+    }
+
+
     // dd/mm ou dd-mm
     const m1 = texto.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
     if (m1) {
