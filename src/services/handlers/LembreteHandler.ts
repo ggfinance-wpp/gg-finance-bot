@@ -5,6 +5,29 @@ import { extrairDiaSimples, normalizarMes, parseDataPtBr } from "../../utils/par
 
 export class LembreteHandler {
 
+  /**
+   * Tenta interpretar a data tanto em formato pt-BR ("20/11", "amanhã")
+   * quanto em formato ISO ("2023-12-21") que vem da IA.
+   */
+  private static parseDataInteligente(dataStr: string): Date | null {
+    if (!dataStr) return null;
+
+    // 1) Primeiro tenta o parser pt-BR já existente
+    const pt = parseDataPtBr(dataStr);
+    if (pt) return pt;
+
+    // 2) Se não rolou, tenta ISO (YYYY-MM-DD ou parecido)
+    const isoMatch = dataStr.match(/^\d{4}-\d{2}-\d{2}/);
+    if (isoMatch) {
+      const d = new Date(dataStr);
+      if (!isNaN(d.getTime())) {
+        return d;
+      }
+    }
+
+    return null;
+  }
+
   static async iniciar(
     telefone: string,
     usuarioId: string,
@@ -13,10 +36,12 @@ export class LembreteHandler {
     valor: number | null = null
   ) {
 
+    // ✅ Caso ideal: IA já mandou mensagem + data + valor
     if (mensagem && data && valor !== null) {
       return this.salvarCompletoComParse(telefone, usuarioId, mensagem, data, valor);
     }
 
+    // Mensagem + valor, mas sem data → pedir só a data
     if (mensagem && valor !== null && !data) {
       await ContextoRepository.salvar(telefone, {
         etapa: "criando_lembrete_data",
@@ -29,6 +54,7 @@ export class LembreteHandler {
       );
     }
 
+    // Mensagem + data, mas sem valor → pedir valor
     if (mensagem && data && valor === null) {
       const apenasDia = extrairDiaSimples(data);
 
@@ -43,6 +69,7 @@ export class LembreteHandler {
       );
     }
 
+    // Só mensagem → pedir data
     if (mensagem && !data) {
       await ContextoRepository.salvar(telefone, {
         etapa: "criando_lembrete_data",
@@ -55,6 +82,7 @@ export class LembreteHandler {
       );
     }
 
+    // Só data → pedir texto
     if (data && !mensagem) {
       await ContextoRepository.salvar(telefone, {
         etapa: "criando_lembrete_texto",
@@ -67,6 +95,7 @@ export class LembreteHandler {
       );
     }
 
+    // Nada ainda → começar pedindo o texto
     await ContextoRepository.salvar(telefone, {
       etapa: "criando_lembrete_texto"
     });
@@ -85,7 +114,8 @@ export class LembreteHandler {
     dataStr: string,
     valor: number | null
   ) {
-    const data = parseDataPtBr(dataStr);
+    // 🔑 AGORA usa o parser inteligente (pt-BR ou ISO)
+    const data = this.parseDataInteligente(dataStr);
 
     if (!data) {
       await ContextoRepository.salvar(telefone, {
@@ -144,7 +174,8 @@ export class LembreteHandler {
       return EnviadorWhatsApp.enviar(telefone, "⚠️ Texto não encontrado.");
     }
 
-    const data = parseDataPtBr(dataMsg);
+    // 🔑 Aqui também passa a usar o parser inteligente
+    const data = this.parseDataInteligente(dataMsg);
     if (!data) {
       return EnviadorWhatsApp.enviar(telefone, "❌ Data inválida.");
     }
@@ -188,7 +219,8 @@ export class LembreteHandler {
     }
 
     if (dados.data && !dados.dia) {
-      const parsed = parseDataPtBr(dados.data);
+      // 🔑 Usa o parser inteligente para a data salva no contexto
+      const parsed = this.parseDataInteligente(dados.data);
 
       if (parsed) {
         await LembreteRepository.criar({
@@ -247,7 +279,8 @@ export class LembreteHandler {
 
     const { dia, mensagem, valor } = dados;
 
-    const dataCompleta = parseDataPtBr(mesMsg);
+    // 🔑 Primeiro tenta se o usuário mandou uma data completa ("20/11/2025")
+    const dataCompleta = this.parseDataInteligente(mesMsg);
     if (dataCompleta) {
       await LembreteRepository.criar({
         usuarioId,
@@ -264,6 +297,7 @@ export class LembreteHandler {
       );
     }
 
+    // Se não for uma data completa, interpreta só o mês ("novembro", "11")
     const mes = normalizarMes(mesMsg);
     if (mes === null) {
       return EnviadorWhatsApp.enviar(telefone, "❌ Não entendi o mês.");

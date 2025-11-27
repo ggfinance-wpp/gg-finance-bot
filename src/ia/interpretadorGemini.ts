@@ -19,9 +19,13 @@ Sua missão:
 IMPORTANTE:
 - Proibido retornar qualquer coisa fora do JSON.
 - Proibido adicionar textos, explicações ou markdown.
-- Sempre retornar um JSON 100% válido.
+- Você deve SEMPRE retornar um *ARRAY JSON* de ações.
+- Cada item do array é UM objeto de ação (receita, despesa, lembrete, etc.).
+- Se houver apenas uma ação, retorne um array com UM único objeto.
 - Se não souber a intenção, retorne:
-  { "acao": "desconhecido" }
+  [
+    { "acao": "desconhecido" }
+  ]
 
 ────────────────────────────────────────
 📌 INTENÇÕES SUPORTADAS
@@ -193,6 +197,49 @@ Exemplos:
 { "acao": "desconhecido" }
 
 ────────────────────────────────────────
+📌 INTENÇÃO EXTRA: EXCLUIR LEMBRETE
+────────────────────────────────────────
+Sempre que o usuário mencionar as palavras:
+- "lembrete", "aviso", "recordatório", "recordatorio"
+E também usar verbos:
+- "apagar", "excluir", "deletar", "remover", "cancelar"
+
+Então adicione UMA ação no array assim:
+
+{
+  "acao": "excluir_lembrete",
+  "mensagem": string | null,   // texto principal do lembrete
+  "data": string | null        // se houver data como 30/11, dia 5, etc.
+}
+
+Exemplos:
+- "quero excluir o lembrete da academia"
+- "remover aviso do aluguel dia 10"
+- "apagar lembrete de pagar cartão 15/12"
+
+────────────────────────────────────────
+📌 MULTIPLAS AÇÕES NA MESMA MENSAGEM
+────────────────────────────────────────
+Se a mensagem tiver várias ações, você deve retornar VÁRIOS objetos no array.
+
+Exemplo de mensagem:
+"gastei 5 no salgado, também 4,80 com passagem, paguei 144 da fatura, dei 60 pra minha mãe e me lembra dia 01/12/2025 pagar a faculdade 100"
+
+Resposta esperada (exemplo de formato):
+[
+  { "acao": "registrar_despesa", "valor": 5, "descricao": "salgado", "categoria": "alimentacao", "agendar": false, "dataAgendada": null },
+  { "acao": "registrar_despesa", "valor": 4.8, "descricao": "passagem", "categoria": "transporte", "agendar": false, "dataAgendada": null },
+  { "acao": "registrar_despesa", "valor": 144, "descricao": "fatura", "categoria": "cartao", "agendar": false, "dataAgendada": null },
+  { "acao": "registrar_despesa", "valor": 60, "descricao": "para mãe", "categoria": "familia", "agendar": false, "dataAgendada": null },
+  { "acao": "criar_lembrete", "mensagem": "pagar faculdade", "data": "2025-12-01", "valor": 100, "categoria": "educacao" }
+]
+
+Se não entender nada da mensagem, responda:
+[
+  { "acao": "desconhecido" }
+]
+
+────────────────────────────────────────
 📌 REGRAS DE EXTRAÇÃO
 ────────────────────────────────────────
 
@@ -218,59 +265,40 @@ Exemplos:
 - "anota pra mim gastei 200"
 - "me lembra de pagar o boleto"
 
-────────────────────────────────────────
-📌 INTENÇÃO EXTRA: EXCLUIR LEMBRETE
-────────────────────────────────────────
-Sempre que o usuário mencionar as palavras:
-- "lembrete", "aviso", "recordatório", "recordatorio"
-E também usar verbos:
-- "apagar", "excluir", "deletar", "remover", "cancelar"
-
-Então retorne:
-
-{
-  "acao": "excluir_lembrete",
-  "mensagem": string | null,   // texto principal do lembrete
-  "data": string | null         // se houver data como 30/11, dia 5, etc.
-}
-
-Exemplos:
-- "quero excluir o lembrete da academia"
-- "remover aviso do aluguel dia 10"
-- "apagar lembrete de pagar cartão 15/12"
-
-
 ✔ Se a frase estiver incompleta:
 retorne:
-{ "acao": "desconhecido" }
+[
+  { "acao": "desconhecido" }
+]
 
 ────────────────────────────────────────
 📩 MENSAGEM DO USUÁRIO:
 "${mensagem}"
 
 ────────────────────────────────────────
-Agora retorne APENAS o JSON.
+Agora retorne APENAS o JSON (um ARRAY).
 `;
 
     const resposta = await modelo.generateContent(prompt);
 
-    let texto = resposta.response.text().trim();    // limpeza de markdown
+    let texto = resposta.response.text().trim();
     texto = texto
       .replace(/```json/gi, "")
       .replace(/```/g, "")
       .replace(/\\n/g, "\n")
       .trim();
 
-    // tentar extrair somente o JSON mesmo que tenha texto fora
-    const match = texto.match(/\{[\s\S]*\}$/);
+    // tentar extrair somente o JSON mesmo que tenha algo fora
+    const match = texto.match(/(\[|\{)[\s\S]*$/);
     if (match) {
       texto = match[0];
     }
+
     try {
       return JSON.parse(texto);
     } catch (e) {
       console.error("Erro ao interpretar JSON da IA:", texto);
-      return { acao: "desconhecido" };
+      return [{ acao: "desconhecido" }];
     }
   }
 }

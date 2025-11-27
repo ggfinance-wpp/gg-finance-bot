@@ -36,7 +36,7 @@ export function startWhatsAppBot() {
     }
 
     // 🔒 Número autorizado (SOMENTE VOCÊ)
-    const numeroAutorizado = "558597280182"; // <- SEU NÚMERO AQUI
+    const numeroAutorizado = "558597318903"; // <- SEU NÚMERO AQUI
 
     // ❌ Ignora qualquer número que não seja o seu
     if (telefone !== numeroAutorizado) {

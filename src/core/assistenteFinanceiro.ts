@@ -1,4 +1,4 @@
-// core/assistenteFinanceiro.ts CORRIGIDO
+// core/assistenteFinanceiro.ts
 
 import { InterpretadorGemini } from "../ia/interpretadorGemini";
 import { RespostaGemini } from "../ia/respostaGemini";
@@ -27,6 +27,14 @@ export class AssistenteFinanceiro {
     const usuario = await UsuarioRepository.buscarPorTelefone(telefone);
     const contexto = await ContextoRepository.obter(telefone);
 
+    // 🔧 Comando de reset de contexto (opcional, mas útil em dev)
+    const msgLower = mensagem.trim().toLowerCase();
+    if (msgLower === "#reset" || msgLower === "/reset") {
+      await ContextoRepository.limpar(telefone);
+      await EnviadorWhatsApp.enviar(telefone, "🧹 Contexto apagado! Podemos começar do zero.");
+      return;
+    }
+
     // 0) Saudação — apenas se não houver contexto e mensagem for saudação
     if (usuario && !contexto) {
       const msg = mensagem.toLowerCase().trim();
@@ -42,7 +50,6 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 1) CONTEXTO ATIVO
     // 1) CONTEXTO ATIVO
     if (contexto) {
       const etapa = contexto.etapa;
@@ -91,7 +98,7 @@ export class AssistenteFinanceiro {
         case "confirmar_exclusao":
           return ExcluirTransacaoHandler.executar(telefone, mensagem);
 
-        // 📌 Exclusão de lembrete (AQUI ESTAVA FALTANDO)
+        // 📌 Exclusão de lembrete
         case "excluir_lembrete_escolher":
           return ExcluirLembreteHandler.escolher(telefone, mensagem);
 
@@ -102,98 +109,114 @@ export class AssistenteFinanceiro {
 
     // 2) GATE — Cadastro obrigatório antes de tudo
     if (!usuario) {
+      // Agora quem cuida de TUDO (mensagens + fluxo) é o CadastroUsuarioHandler
       return CadastroUsuarioHandler.executar(telefone, mensagem);
     }
 
-    // 3) IA Interpretadora
-    const intent = await InterpretadorGemini.interpretarMensagem(mensagem, { usuario });
-    console.log("IA:", intent);
+    // 3) IA Interpretadora (agora com múltiplas ações)
+    const interpretacao = await InterpretadorGemini.interpretarMensagem(mensagem, { usuario });
 
-    // const requerCadastro = [
-    //   "registrar_despesa", "registrar_receita", "criar_categoria",
-    //   "editar_transacao", "excluir_transacao", "criar_lembrete",
-    //   "ver_saldo", "ver_perfil"
-    // ];
+    // Garante que vamos trabalhar sempre com um array
+    const intents = Array.isArray(interpretacao) ? interpretacao : [interpretacao];
 
-    // if (!usuario && requerCadastro.includes(intent.acao)) {
-    //   await EnviadorWhatsApp.enviar(telefone, "Para continuar, preciso do seu nome completo 🙂");
-    //   return CadastroUsuarioHandler.executar(telefone, mensagem);
-    // }
+    console.log("IA:", intents);
 
-    // 4) ROTAS PRINCIPAIS
-    switch (intent.acao) {
+    let processouAlgumaAcao = false;
 
-      case "registrar_despesa":
-        return RegistrarDespesaHandler.executar(
-          telefone,
-          usuario!.id,
-          intent.valor,
-          intent.descricao,
-          intent.dataAgendada, // ✔ corrigido
-          intent.categoria      // ✔ corrigido
-        );
+    for (const intent of intents) {
 
-      case "registrar_receita":
-        return RegistrarReceitaHandler.executar(
-          telefone,
-          usuario!.id,
-          intent.valor,
-          intent.descricao,
-          intent.dataAgendada, // ✔ corrigido (antes estava recebendo boolean!)
-          intent.categoria     // ✔ corrigido
-        );
+      switch (intent.acao) {
 
-      case "criar_categoria":
-        return CategoriaHandler.iniciarCriacao(telefone);
+        case "registrar_despesa":
+          processouAlgumaAcao = true;
+          await RegistrarDespesaHandler.executar(
+            telefone,
+            usuario!.id,
+            intent.valor,
+            intent.descricao,
+            intent.dataAgendada,
+            intent.categoria
+          );
+          break;
 
-      case "criar_lembrete":
-        return LembreteHandler.iniciar(
-          telefone,
-          usuario!.id,
-          intent.mensagem,
-          intent.data,
-          intent.valor ?? null
-        );
+        case "registrar_receita":
+          processouAlgumaAcao = true;
+          await RegistrarReceitaHandler.executar(
+            telefone,
+            usuario!.id,
+            intent.valor,
+            intent.descricao,
+            intent.dataAgendada,
+            intent.categoria
+          );
+          break;
 
-      case "editar_transacao":
-        return EditarTransacaoHandler.iniciar(telefone);
+        case "criar_categoria":
+          processouAlgumaAcao = true;
+          await CategoriaHandler.iniciarCriacao(telefone);
+          break;
 
-      case "excluir_transacao":
-        return ExcluirTransacaoHandler.iniciar(telefone);
+        case "criar_lembrete":
+          processouAlgumaAcao = true;
+          await LembreteHandler.iniciar(
+            telefone,
+            usuario!.id,
+            intent.mensagem,
+            intent.data,
+            intent.valor ?? null
+          );
+          break;
 
-      case "excluir_lembrete":
-        return ExcluirLembreteHandler.iniciar(
-          telefone,
-          usuario.id,
-          intent.mensagem,
-          intent.data
-        );
+        case "editar_transacao":
+          processouAlgumaAcao = true;
+          await EditarTransacaoHandler.iniciar(telefone);
+          break;
 
-      case "excluir_lembrete_escolher":
-        return ExcluirLembreteHandler.escolher(telefone, mensagem);
+        case "excluir_transacao":
+          processouAlgumaAcao = true;
+          await ExcluirTransacaoHandler.iniciar(telefone);
+          break;
 
-      case "confirmar_exclusao_lembrete":
-        return ExcluirLembreteHandler.executar(telefone, mensagem);
+        case "excluir_lembrete":
+          processouAlgumaAcao = true;
+          await ExcluirLembreteHandler.iniciar(
+            telefone,
+            usuario.id,
+            intent.mensagem,
+            intent.data
+          );
+          break;
 
-      case "ver_saldo":
-        return RelatorioHandler.executar(telefone, usuario!.id);
+        case "ver_saldo":
+          processouAlgumaAcao = true;
+          await RelatorioHandler.executar(telefone, usuario!.id);
+          break;
 
-      case "ver_perfil":
-        return PerfilHandler.executar(telefone, usuario!.id);
+        case "ver_perfil":
+          processouAlgumaAcao = true;
+          await PerfilHandler.executar(telefone, usuario!.id);
+          break;
 
-      case "cadastrar_usuario":
-        return CadastroUsuarioHandler.executar(telefone, mensagem);
+        case "ajuda":
+          processouAlgumaAcao = true;
+          await EnviadorWhatsApp.enviar(
+            telefone,
+            "📌 *Como posso te ajudar?*\n\n" +
+            "• Registrar *despesa*\n" +
+            "• Registrar *receita*\n" +
+            "• Ver *saldo*\n" +
+            "• Criar *lembrete*\n" +
+            "• Criar *categoria*"
+          );
+          break;
 
-      case "ajuda":
-        return EnviadorWhatsApp.enviar(
-          telefone,
-          "📌 *Como posso te ajudar?*\n\n" +
-          "• Registrar *despesa*\n" +
-          "• Registrar *receita*\n" +
-          "• Ver *saldo*\n" +
-          "• Criar *lembrete*\n" +
-          "• Criar *categoria*"
-        );
+        // "desconhecido" e outros casos caem no fallback genérico
+      }
+    }
+
+    // Se alguma ação foi tratada, não manda resposta genérica
+    if (processouAlgumaAcao) {
+      return;
     }
 
     // 5) Resposta IA Genérica Controlada
