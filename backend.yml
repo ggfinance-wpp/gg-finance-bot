@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  backend-bot:
+    image: ghcr.io/sidneyjfg/backend-bot:latest
+    container_name: backend-bot
+    restart: always
+    env_file:
+     # lerá do ENV
+      - .env 
+    environment:
+      # Se quiser sobrescrever algo no compose, pode colocar aqui no mais ficará tudo no .env
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT}
+    ports:
+      - "${PORT}:${PORT}"
