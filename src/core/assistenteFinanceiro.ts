@@ -142,7 +142,17 @@ export class AssistenteFinanceiro {
     const mensagemNormalizada = mensagem
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, ""); // remove acentos
+      .replace(/[\u0300-\u036f]/g, "");
+    const querTodasReceitas =
+      mensagemNormalizada.includes("todas as receitas") ||
+      mensagemNormalizada.includes("ver todas as receitas") ||
+      mensagemNormalizada.includes("quero ver todas as receitas");
+
+    const querTodasDespesas =
+      mensagemNormalizada.includes("todas as despesas") ||
+      mensagemNormalizada.includes("ver todas as despesas") ||
+      mensagemNormalizada.includes("quero ver todas as despesas");
+    // remove acentos
 
     if (
       mensagemNormalizada.includes("gastei por categoria") ||
@@ -197,6 +207,37 @@ export class AssistenteFinanceiro {
       );
       return;
     }
+
+    // 🔹 Ver receitas detalhadas (atalho direto por texto)
+    if (
+      mensagemNormalizada.includes("minhas receitas") ||
+      mensagemNormalizada.includes("ver receitas") ||
+      mensagemNormalizada.includes("visualizar receitas") ||
+      mensagemNormalizada.includes("listar receitas")
+    ) {
+      await ListarReceitasHandler.executar(
+        telefone,
+        usuario.id,
+        querTodasReceitas 
+      );
+      return;
+    }
+
+    // 🔹 Ver despesas detalhadas (atalho direto por texto)
+    if (
+      mensagemNormalizada.includes("minhas despesas") ||
+      mensagemNormalizada.includes("ver despesas") ||
+      mensagemNormalizada.includes("visualizar despesas") ||
+      mensagemNormalizada.includes("listar despesas")
+    ) {
+      await ListarDespesasHandler.executar(
+        telefone,
+        usuario.id,
+        querTodasDespesas 
+      );
+      return;
+    }
+
 
     // 3) IA Interpretadora (agora com múltiplas ações)
     const interpretacao = await InterpretadorGemini.interpretarMensagem(mensagem, { usuario });

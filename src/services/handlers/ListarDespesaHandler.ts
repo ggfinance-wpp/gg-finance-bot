@@ -1,8 +1,18 @@
+// src/services/handlers/ListarDespesasHandler.ts
 import { TransacaoRepository } from "../../repositories/transacao.repository";
 import { EnviadorWhatsApp } from "../EnviadorWhatsApp";
+import { Categoria } from "@prisma/client";
+
+type TransacaoComCategoria = Awaited<
+  ReturnType<typeof TransacaoRepository.listarDetalhadoPorTipo>
+>[number];
 
 export class ListarDespesasHandler {
-  static async executar(telefone: string, usuarioId: string) {
+  static async executar(
+    telefone: string,
+    usuarioId: string,
+    mostrarTodas: boolean = false
+  ) {
     const despesas = await TransacaoRepository.listarDetalhadoPorTipo(
       usuarioId,
       "despesa"
@@ -20,17 +30,18 @@ export class ListarDespesasHandler {
       new Intl.NumberFormat("pt-BR", {
         style: "currency",
         currency: "BRL",
-        maximumFractionDigits: 2
+        maximumFractionDigits: 2,
       }).format(valor);
 
-    const recentes = despesas.slice(0, 15);
+    const limitePadrao = 30;
+    const lista = mostrarTodas ? despesas : despesas.slice(0, limitePadrao);
 
-    const linhas = recentes.map((d) => {
+    const linhas = lista.map((d) => {
       const data = d.data
         ? new Date(d.data).toLocaleDateString("pt-BR")
         : "-";
       const desc = d.descricao ?? "Sem descrição";
-      const categoria = d.categoria?.nome ?? "Sem categoria";
+      const categoria = (d as TransacaoComCategoria).categoria?.nome ?? "Sem categoria";
       return `• ${data} - ${desc} (${categoria}): ${formatar(
         Number(d.valor)
       )}`;
@@ -41,11 +52,15 @@ export class ListarDespesasHandler {
       0
     );
 
+    const textoLimite = mostrarTodas
+      ? ""
+      : `\n\n_(mostrando as ${lista.length} mais recentes)_`;
+
     const mensagem =
       "💸 *Suas despesas registradas*\n\n" +
       linhas.join("\n") +
-      `\n\n💰 *Total de despesas:* ${formatar(total)}\n` +
-      "_(mostrando as 15 mais recentes)_";
+      `\n\n💰 *Total de despesas:* ${formatar(total)}` +
+      textoLimite;
 
     await EnviadorWhatsApp.enviar(telefone, mensagem);
   }
