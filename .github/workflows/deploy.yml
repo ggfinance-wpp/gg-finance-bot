@@ -36,4 +36,4 @@ jobs:
           tags: |
             ghcr.io/sidneyjfg/gg-finance-bot:latest
           build-args: |
-            DATABASE_URL=postgresql://user:pass@localhost:5432/build_db
+            DATABASE_URL=mysql://root:@localhost:3306/gg-finance
