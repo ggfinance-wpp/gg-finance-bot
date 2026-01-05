@@ -20,6 +20,7 @@ import { EnviadorWhatsApp } from "../services/EnviadorWhatsApp";
 import { ExcluirLembreteHandler } from "../services/handlers/ExcluirLembreteHandler";
 import { ListarDespesasHandler } from "../services/handlers/ListarDespesaHandler";
 import { ListarReceitasHandler } from "../services/handlers/ListarReceitaHandler";
+import { RecorrenciaHandler } from "../services/handlers/RecorrenciaHandler";
 import { extrairMesEAno } from "../utils/periodo";
 
 import { DespesasPorMesHandler } from "../services/handlers/DespesasPorMesHandler";
@@ -124,6 +125,11 @@ export class AssistenteFinanceiro {
 
         case "confirmar_exclusao_lembrete":
           return ExcluirLembreteHandler.executar(telefone, mensagem);
+
+        // 📌 Recorrência (confirmação)
+        case "confirmar_criar_recorrencia":
+          return RecorrenciaHandler.confirmarCriacao(telefone, usuario!.id, mensagem, contexto.dados);
+
       }
     }
 
@@ -163,27 +169,30 @@ export class AssistenteFinanceiro {
     const pediuListagemReceitas = pediuReceitas && querListar;
 
     // ✅ Despesas/Receitas POR MÊS
-    if (pediuListagemDespesas && mesAno) {
+    // ✅ Se a pessoa falou "despesas/gastos" e citou mês (atual, passado, novembro, etc.)
+    // não precisa obrigar verbo "ver/listar"
+    if (pediuDespesas && mesAno) {
       await DespesasPorMesHandler.executar(
         telefone,
         usuario.id,
-        mesAno.mes, // ⚠️ agora mês é 1..12
+        mesAno.mes,
         mesAno.ano,
         querTodas
       );
       return;
     }
 
-    if (pediuListagemReceitas && mesAno) {
+    if (pediuReceitas && mesAno) {
       await ReceitasPorMesHandler.executar(
         telefone,
         usuario.id,
-        mesAno.mes, // ⚠️ agora mês é 1..12
+        mesAno.mes,
         mesAno.ano,
         querTodas
       );
       return;
     }
+
 
     // ✅ “ver despesas / minhas despesas / meus gastos” (SEM mês) → geral
     if (
@@ -278,6 +287,19 @@ export class AssistenteFinanceiro {
           );
           break;
 
+        case "criar_recorrencia":
+          processouAlgumaAcao = true;
+          await RecorrenciaHandler.iniciarCriacao(
+            telefone,
+            usuario!.id,
+            intent.descricao ?? null,
+            intent.valor ?? null,
+            intent.frequencia ?? null,
+            intent.data ?? null
+          );
+          break;
+
+
         case "ver_gastos_da_categoria":
           if (intent.categoria) {
             processouAlgumaAcao = true;
@@ -335,12 +357,12 @@ export class AssistenteFinanceiro {
           await EnviadorWhatsApp.enviar(
             telefone,
             "📌 *Como posso te ajudar?*\n\n" +
-              "• Registrar *despesa*\n" +
-              "• Registrar *receita*\n" +
-              "• Ver *saldo*\n" +
-              "• Ver *gastos por categoria*\n" +
-              "• Criar *lembrete*\n" +
-              "• Criar *categoria*"
+            "• Registrar *despesa*\n" +
+            "• Registrar *receita*\n" +
+            "• Ver *saldo*\n" +
+            "• Ver *gastos por categoria*\n" +
+            "• Criar *lembrete*\n" +
+            "• Criar *categoria*"
           );
           break;
 

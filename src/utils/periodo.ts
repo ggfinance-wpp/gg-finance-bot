@@ -1,5 +1,3 @@
-// src/utils/periodo.utils.ts
-
 function normalizar(texto: string) {
   return texto
     .toLowerCase()
@@ -29,21 +27,24 @@ export function extrairMesEAno(mensagem: string): { mes: number; ano: number } |
   const txt = normalizar(mensagem);
   const hoje = new Date();
 
-  // ✅ esse mês / mês atual / neste mês
-  if (/\b(esse|este|neste)\s+mes\b|\bmes\s+atual\b/.test(txt)) {
-    return { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
-  }
-
-  // ✅ mês passado
+  // ✅ mês passado (primeiro!)
   if (/\bmes\s+passad[oa]\b/.test(txt)) {
     const dt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
     return { mes: dt.getMonth() + 1, ano: dt.getFullYear() };
   }
 
-  // ✅ mês retrasado
+  // ✅ mês retrasado (segundo!)
   if (/\bmes\s+retrasad[oa]\b/.test(txt)) {
     const dt = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
     return { mes: dt.getMonth() + 1, ano: dt.getFullYear() };
+  }
+
+  // ✅ mês atual (agora sim)
+  if (
+    /\b(esse|este|neste|desse|deste|dessa)\s+mes\b/.test(txt) ||
+    /\bmes\s+(atual|corrente)\b/.test(txt)
+  ) {
+    return { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
   }
 
   // ✅ "mês 11" / "mes 11" (e aceita "mes11")

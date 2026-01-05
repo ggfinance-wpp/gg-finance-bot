@@ -3,46 +3,88 @@ import { TransacaoRepository } from "../../repositories/transacao.repository";
 import { EnviadorWhatsApp } from "../EnviadorWhatsApp";
 import { LembreteRepository } from "../../repositories/lembrete.repository";
 import { LembreteClassifier } from "../../utils/LembreteClassifier";
+import { prisma } from "../../infra/prisma";
 
 export class RelatorioHandler {
-
   static formatar(valor: number) {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
-      currency: "BRL"
+      currency: "BRL",
     }).format(valor);
   }
 
   static async executar(telefone: string, usuarioId: string) {
     const { receitas, despesas, saldo } = await TransacaoRepository.extrato(usuarioId);
 
-    // 📌 Buscar lembretes futuros com data > hoje
-    const lembretes = await LembreteRepository.listarPorUsuario(usuarioId);
     const hoje = new Date();
 
-    const futuros = lembretes.filter(l => l.dataAlvo && l.dataAlvo > hoje);
+    const lembretes = await LembreteRepository.listarPorUsuario(usuarioId);
+    const futurosLembretes = lembretes.filter((l) => l.dataAlvo && l.dataAlvo > hoje);
 
-    // Agrupamento
-    const futurasReceitas: any[] = [];
-    const futurasDespesas: any[] = [];
+    const recorrenciasFuturas = await prisma.recorrencia.findMany({
+      where: {
+        usuarioId,
+        proximaCobra: { gt: hoje },
+      },
+      orderBy: { proximaCobra: "asc" },
+      include: {
+        transacao: true, // tem descricao, valor, tipo
+      },
+      take: 10, // evita texto gigante
+    });
 
-    for (const l of futuros) {
+    type FuturoItem = {
+      data: Date;
+      mensagem: string;
+      valor: number;
+      origem: "lembrete" | "recorrencia";
+    };
+
+    const futurasReceitas: FuturoItem[] = [];
+    const futurasDespesas: FuturoItem[] = [];
+
+    // ---- Lembretes
+    for (const l of futurosLembretes) {
       const tipo = LembreteClassifier.classificar(l.mensagem);
 
-      const item = {
+      const item: FuturoItem = {
         data: l.dataAlvo!,
         mensagem: l.mensagem,
-        valor: l.valor ?? 0
+        valor: l.valor ?? 0,
+        origem: "lembrete",
       };
 
       if (tipo === "receita") futurasReceitas.push(item);
       else futurasDespesas.push(item);
     }
 
+    // ---- Recorrências
+    for (const r of recorrenciasFuturas) {
+      const tipo = r.transacao?.tipo; // "receita" | "despesa"
+      const descricao = r.transacao?.descricao ?? "Recorrência";
+      const valor = r.transacao?.valor ? Number(r.transacao.valor) : 0;
+
+      const item: FuturoItem = {
+        data: r.proximaCobra,
+        mensagem: descricao,
+        valor,
+        origem: "recorrencia",
+      };
+
+      if (tipo === "receita") futurasReceitas.push(item);
+      else futurasDespesas.push(item);
+    }
+
+    // Ordena por data (misturando lembrete + recorrência)
+    futurasReceitas.sort((a, b) => a.data.getTime() - b.data.getTime());
+    futurasDespesas.sort((a, b) => a.data.getTime() - b.data.getTime());
+
     const totalReceitasFuturas = futurasReceitas.reduce((s, x) => s + x.valor, 0);
     const totalDespesasFuturas = futurasDespesas.reduce((s, x) => s + x.valor, 0);
 
-    // 📌 Relatório base
+    // =========================================================
+    // 4) Texto do relatório (mesmo padrão)
+    // =========================================================
     let texto = `
 📊 *RELATÓRIO FINANCEIRO*
 
@@ -51,7 +93,6 @@ export class RelatorioHandler {
 📍 Saldo:     ${this.formatar(saldo)}
     `.trim();
 
-    // 📅 Lançamentos futuros
     texto += `\n\n📅 *PRÓXIMOS LANÇAMENTOS*`;
 
     // ---------- DESPESAS FUTURAS ----------
@@ -59,10 +100,18 @@ export class RelatorioHandler {
     if (futurasDespesas.length === 0) {
       texto += `\n• Nenhuma despesa futura`;
     } else {
-      futurasDespesas.forEach(d => {
-        texto += `\n• ${d.data.toLocaleDateString("pt-BR")} — ${d.mensagem}`;        
+      futurasDespesas.forEach((d) => {
+        const dataFmt = d.data.toLocaleDateString("pt-BR");
+
+        // opcional: mostrar origem
+        // const tag = d.origem === "recorrencia" ? " (recorrência)" : "";
+        // texto += `\n• ${dataFmt} — ${d.mensagem}${tag}`;
+
+        texto += `\n• ${dataFmt} — ${d.mensagem}`;
+
         if (d.valor > 0) texto += ` (${this.formatar(d.valor)})`;
       });
+
       texto += `\n→ *Total de despesas futuras:* ${this.formatar(totalDespesasFuturas)}`;
     }
 
@@ -71,10 +120,18 @@ export class RelatorioHandler {
     if (futurasReceitas.length === 0) {
       texto += `\n• Nenhuma receita futura`;
     } else {
-      futurasReceitas.forEach(r => {
-        texto += `\n• ${r.data.toLocaleDateString("pt-BR")} — ${r.mensagem}`;
+      futurasReceitas.forEach((r) => {
+        const dataFmt = r.data.toLocaleDateString("pt-BR");
+
+        // opcional: mostrar origem
+        // const tag = r.origem === "recorrencia" ? " (recorrência)" : "";
+        // texto += `\n• ${dataFmt} — ${r.mensagem}${tag}`;
+
+        texto += `\n• ${dataFmt} — ${r.mensagem}`;
+
         if (r.valor > 0) texto += ` (${this.formatar(r.valor)})`;
       });
+
       texto += `\n→ *Total de receitas futuras:* ${this.formatar(totalReceitasFuturas)}`;
     }
 
