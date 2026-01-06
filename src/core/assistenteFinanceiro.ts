@@ -160,6 +160,9 @@ export class AssistenteFinanceiro {
     // detectar pedido de receitas/entradas
     const pediuReceitas = /(receita|receitas|entrada|entradas)/.test(mensagemNormalizada);
 
+    // detectar pedido de transações/movimentações/extrato
+    const pediuTransacoes = /(transacao|transacoes|extrato|movimentacao|movimentacoes)/.test(mensagemNormalizada);
+
     // ✅ verbo de listagem bem tolerante (pega "me mostre" que estava falhando)
     const querListar = /(me\s+mostr(a|e)|mostr(ar|a|e)|ver|listar|visualizar|quais|extrato)/.test(
       mensagemNormalizada
@@ -193,6 +196,15 @@ export class AssistenteFinanceiro {
       return;
     }
 
+    if (pediuTransacoes && (mesAno || mensagemNormalizada.includes("desse mes") || mensagemNormalizada.includes("mes atual"))) {
+      const agora = new Date();
+      const m = mesAno?.mes ?? (agora.getMonth() + 1);
+      const a = mesAno?.ano ?? agora.getFullYear();
+
+      await DespesasPorMesHandler.executar(telefone, usuario.id, m, a, querTodas);
+      await ReceitasPorMesHandler.executar(telefone, usuario.id, m, a, querTodas);
+      return;
+    }
 
     // ✅ “ver despesas / minhas despesas / meus gastos” (SEM mês) → geral
     if (
@@ -222,14 +234,21 @@ export class AssistenteFinanceiro {
       return;
     }
 
-    // ✅ gastos por categoria (atalho)
-    if (
+    const pediuGastoPorCategoria =
       mensagemNormalizada.includes("gastei por categoria") ||
       mensagemNormalizada.includes("gastos por categoria") ||
       mensagemNormalizada.includes("gasto por categoria") ||
       mensagemNormalizada.includes("quanto eu gastei por categoria") ||
-      mensagemNormalizada.includes("quanto gastei em cada categoria")
-    ) {
+      mensagemNormalizada.includes("quanto gastei em cada categoria");
+
+    // ✅ NOVO: por mês
+    if (pediuGastoPorCategoria && mesAno) {
+      await GastoPorCategoriaHandler.executar(telefone, usuario.id, mesAno.mes, mesAno.ano);
+      return;
+    }
+
+    // ✅ existente: geral (sem mês)
+    if (pediuGastoPorCategoria) {
       await GastoPorCategoriaHandler.executar(telefone, usuario.id);
       return;
     }

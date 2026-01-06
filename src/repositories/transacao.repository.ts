@@ -104,9 +104,9 @@ export class TransacaoRepository {
         data:
           params.dataInicio && params.dataFim
             ? {
-                gte: params.dataInicio,
-                lt: params.dataFim, // ✅ fim EXCLUSIVO
-              }
+              gte: params.dataInicio,
+              lt: params.dataFim, // ✅ fim EXCLUSIVO
+            }
             : undefined,
       },
       orderBy: { data: "desc" },
@@ -160,8 +160,8 @@ export class TransacaoRepository {
     const categorias =
       categoriaIds.length > 0
         ? await prisma.categoria.findMany({
-            where: { id: { in: categoriaIds } },
-          })
+          where: { id: { in: categoriaIds } },
+        })
         : [];
 
     return grupos
@@ -181,6 +181,59 @@ export class TransacaoRepository {
       })
       .sort((a, b) => b.total - a.total);
   }
+
+  static async gastosPorCategoriaPorPeriodo(
+    usuarioId: string,
+    dataInicio: Date,
+    dataFim: Date
+  ): Promise<GastoPorCategoriaItem[]> {
+    const grupos = await prisma.transacao.groupBy({
+      by: ["categoriaId"],
+      where: {
+        usuarioId,
+        tipo: "despesa",
+        status: StatusTransacao.concluida,
+        data: {
+          gte: dataInicio,
+          lt: dataFim, // fim exclusivo
+        },
+      },
+      _sum: {
+        valor: true,
+      },
+    });
+
+    if (!grupos.length) return [];
+
+    const categoriaIds = grupos
+      .map((g) => g.categoriaId)
+      .filter((id): id is string => id !== null);
+
+    const categorias =
+      categoriaIds.length > 0
+        ? await prisma.categoria.findMany({
+          where: { id: { in: categoriaIds } },
+        })
+        : [];
+
+    return grupos
+      .map((g) => {
+        const total = Number(g._sum.valor ?? 0);
+
+        const categoria =
+          g.categoriaId != null
+            ? categorias.find((c) => c.id === g.categoriaId)
+            : null;
+
+        return {
+          categoriaId: g.categoriaId,
+          nome: categoria?.nome ?? "Sem categoria",
+          total,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }
+
 
   static async listarDespesasPorCategoriaNome(
     usuarioId: string,
