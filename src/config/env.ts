@@ -8,6 +8,7 @@ const envSchema = z.object({
   WHATSAPP_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_ID: z.string().optional(),
   API_KEY: z.string(),
+  GEMINI_API_KEY: z.string(),
   WEBHOOK_SECRET:z.string()
 });
 
