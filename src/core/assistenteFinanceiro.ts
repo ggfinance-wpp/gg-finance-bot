@@ -24,6 +24,7 @@ import { GastosDaCategoriaHandler } from "../services/handlers/relatorios/Gastos
 import { RelatorioHandler } from "../services/handlers/relatorios/RelatorioHandler";
 import { CategoriaHandler } from "../services/handlers/financeiro/CategoriaHandler";
 import { ListarReceitasHandler } from "../services/handlers/financeiro/ListarReceitaHandler";
+import { rateLimitIA } from "../middlewares/rateLimit.middleware";
 
 
 export class AssistenteFinanceiro {
@@ -138,11 +139,21 @@ export class AssistenteFinanceiro {
       mensagemNormalizada
     };
 
+    // 3️⃣ DETECTORES (consultas determinísticas, sem IA)
     for (const detector of detectores) {
       if (detector.match(ctx)) {
         await detector.executar(ctx);
         return;
       }
+    }
+
+    // 🚦 RATE LIMIT (ANTES DE GASTAR IA)
+    if (!rateLimitIA(usuario.id)) {
+      await EnviadorWhatsApp.enviar(
+        telefone,
+        "⏳ Você está usando rápido demais. Aguarde um pouco antes de tentar novamente."
+      );
+      return;
     }
 
     // 4️⃣ IA — interpretação semântica

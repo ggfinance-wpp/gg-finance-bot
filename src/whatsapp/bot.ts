@@ -49,16 +49,31 @@ export function startWhatsAppBot() {
     try {
       await BotService.processarMensagem(telefone, mensagem);
     } catch (error: any) {
-      // 🔍 Detecta erro relacionado à IA (Gemini / OpenAI / etc.)
       const mensagemErro = error?.message || "";
       const status = error?.status || error?.code;
 
+      // 🚦 RATE LIMIT (429)
+      if (status === 429 || mensagemErro.includes("429")) {
+        console.warn("🚦 Rate limit atingido:", {
+          telefone,
+          mensagem: mensagemErro
+        });
+
+        await EnviadorWhatsApp.enviar(
+          telefone,
+          "⏳ *Calma lá!* Você está usando o assistente muito rápido.\n" +
+          "Para evitar custos e instabilidade, aguarde alguns instantes e tente novamente 🙂"
+        );
+
+        return;
+      }
+
+      // 🤖 Erros relacionados à IA
       const erroIA =
         mensagemErro.includes("API key") ||
         mensagemErro.includes("generative") ||
         mensagemErro.includes("Gemini") ||
         mensagemErro.includes("OpenAI") ||
-        status === 429 || // rate limit
         status === 500 ||
         status === 503;
 
@@ -70,20 +85,22 @@ export function startWhatsAppBot() {
 
         await EnviadorWhatsApp.enviar(
           telefone,
-          "🤖 *IA indisponível no momento.*\nTente novamente em alguns instantes."
+          "🤖 *IA temporariamente indisponível.*\n" +
+          "Estamos ajustando as engrenagens aqui. Tente novamente em instantes."
         );
 
         return;
       }
 
-      // ❌ Erro genérico (não relacionado à IA)
+      // ❌ Erro genérico
       console.error("❌ Erro ao processar mensagem:", error?.message || error);
 
       await EnviadorWhatsApp.enviar(
         telefone,
-        "❌ Ocorreu um erro inesperado. Tente novamente."
+        "❌ Ocorreu um erro inesperado.\nSe persistir, tente novamente mais tarde."
       );
     }
+
   });
 
   client.initialize();

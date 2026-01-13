@@ -1,5 +1,4 @@
 import Fastify from "fastify";
-import { rateLimitMiddleware } from "./middlewares/rateLimit.middleware";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import { logger } from "./utils/logger";
 import { env } from "./config/env";
@@ -10,7 +9,6 @@ async function bootstrap() {
   const app = Fastify();
 
   // Middlewares globais
-  await rateLimitMiddleware(app);
   app.addHook("onRequest", authMiddleware);
   startWhatsAppBot();
   // Carrega todas as rotas em 1 lugar ✅

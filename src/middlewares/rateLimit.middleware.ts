@@ -1,14 +1,27 @@
-import fastifyRateLimit from "@fastify/rate-limit";
-import { FastifyInstance } from "fastify";
+const limites = new Map<
+  string,
+  { count: number; resetAt: number }
+>();
 
-export async function rateLimitMiddleware(app: FastifyInstance) {
-  await app.register(fastifyRateLimit, {
-    max: 30, // 30 requisições
-    timeWindow: "1 minute",
-    errorResponseBuilder: (req, ctx) => ({
-      statusCode: 429,
-      error: "Too Many Requests",
-      message: "Muitas requisições, tente novamente em instantes.",
-    }),
-  });
+const WINDOW_MS = 60_000; // 1 minuto
+const MAX_REQUESTS = 20; // por usuário
+
+export function rateLimitIA(usuarioId: string) {
+  const agora = Date.now();
+  const registro = limites.get(usuarioId);
+
+  if (!registro || agora > registro.resetAt) {
+    limites.set(usuarioId, {
+      count: 1,
+      resetAt: agora + WINDOW_MS
+    });
+    return true;
+  }
+
+  if (registro.count >= MAX_REQUESTS) {
+    return false;
+  }
+
+  registro.count++;
+  return true;
 }
