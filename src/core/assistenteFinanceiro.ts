@@ -17,7 +17,7 @@ import { ExcluirLembreteHandler } from "../services/handlers/lembrete/ExcluirLem
 import { ListarDespesasHandler } from "../services/handlers/financeiro/ListarDespesaHandler";
 
 import { detectores } from "../utils/detectoresDeIntencao";
-import { RecorrenciaHandler } from "../services/handlers/agendamentos/RecorrenciaHandler";
+import { RecorrenciaHandler } from "../services/handlers/financeiro/RecorrenciaHandler";
 import { ExcluirTransacaoHandler } from "../services/handlers/financeiro/ExcluirTransacaoHandler";
 import { GastoPorCategoriaHandler } from "../services/handlers/relatorios/GastoPorCategoriaHandler";
 import { GastosDaCategoriaHandler } from "../services/handlers/relatorios/GastosDaCategoriaHandler";

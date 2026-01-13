@@ -39,7 +39,6 @@ export function startWhatsAppBot() {
 
     // ❌ Ignora mensagens de grupos
     if (msg.from.includes("@g.us")) {
-      console.log("📵 Mensagem de grupo ignorada.");
       return;
     }
 
@@ -48,10 +47,9 @@ export function startWhatsAppBot() {
 
     // ❌ Ignora qualquer número que não seja o seu
     if (telefone !== numeroAutorizado) {
-      console.log(`🚫 Ignorando número não autorizado: ${telefone}`);
       return;
     }
-
+    console.log("Aguardando nova mensagem");
     // ✔️ Processa com a IA
     try {
       await BotService.processarMensagem(telefone, mensagem);
