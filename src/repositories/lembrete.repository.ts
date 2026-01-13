@@ -96,6 +96,20 @@ export class LembreteRepository {
       data: { enviado: true },
     });
   }
+  
+  static async buscarPendentesAte(agora: Date) {
+    return prisma.lembrete.findMany({
+      where: {
+        enviado: false,
+        dataAlvo: {
+          lte: agora
+        }
+      },
+      include: {
+        usuario: true // 🔑 necessário para pegar telefone
+      }
+    });
+  }
 
   static async atualizar(
     id: string,

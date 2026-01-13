@@ -26,6 +26,7 @@
     "fastify-rate-limit": "^5.8.0",
     "fastify-sensible": "^3.1.2",
     "mysql2": "^3.15.3",
+    "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "prisma": "^6.19.0",
     "puppeteer": "^24.29.1",
