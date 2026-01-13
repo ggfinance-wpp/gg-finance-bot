@@ -3,7 +3,6 @@ FROM node:18-bullseye AS builder
 
 WORKDIR /app
 
-# Dependências para Prisma
 RUN apt-get update && apt-get install -y \
   openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -16,10 +15,7 @@ COPY . .
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
 
-# Prisma
 RUN npx prisma generate
-
-# Build TypeScript
 RUN npm run build
 
 
@@ -28,7 +24,6 @@ FROM node:18-bullseye
 
 WORKDIR /app
 
-# 🔥 DEPENDÊNCIAS DO CHROMIUM (ESSENCIAL)
 RUN apt-get update && apt-get install -y \
   chromium \
   fonts-liberation \
@@ -49,7 +44,6 @@ RUN apt-get update && apt-get install -y \
   ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# Variável usada pelo Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 
@@ -58,5 +52,6 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
