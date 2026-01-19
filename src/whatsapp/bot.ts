@@ -1,20 +1,20 @@
+// whatsapp.bot.ts
 import { Client, LocalAuth } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import { logger } from "../utils/logger";
-import { BotService } from "../services/bot.service"; // AGORA USAMOS O NOVO FLUXO
-import { EnviadorWhatsApp } from "../services/EnviadorWhatsApp";
+import { BotService } from "../services/bot.service";
 
 export const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-zygote',
-      '--single-process'
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-zygote",
+      "--single-process"
     ]
   }
 });
@@ -29,67 +29,57 @@ export function startWhatsAppBot() {
     logger.info("✅ WhatsApp conectado e pronto!");
   });
 
-  client.on("auth_failure", () => logger.error("❌ Falha na autenticação"));
+  client.on("auth_failure", () =>
+    logger.error("❌ Falha na autenticação")
+  );
 
   client.on("message", async (msg) => {
+    // ❌ ignora grupos
+    if (msg.from.endsWith("@g.us")) return;
 
-  // ❌ ignora grupos
-  if (msg.from.endsWith("@g.us")) return;
+    const mensagem = msg.body.trim();
+    const chat = await msg.getChat();
 
-  const mensagem = msg.body;
+    // 🔑 IDENTIDADE ÚNICA
+    const userId = chat.id._serialized; // @lid ou @c.us
 
-  // 🔑 USA O CHAT COMO DESTINO (REGRA FINAL)
-  const chat = await msg.getChat();
-  const destino = chat.id._serialized; // pode ser @c.us ou @lid
+    console.log(`📩 ${userId}: ${mensagem}`);
 
-  console.log(`📩 ${destino}: ${mensagem}`);
-  console.log("Aguardando nova mensagem");
+    try {
+      await BotService.processarMensagem(userId, mensagem);
+    } catch (error: any) {
+      const mensagemErro = error?.message || "";
+      const status = error?.status || error?.code;
 
-  try {
-    // backend continua usando telefone se quiser
-    const telefoneLogico = destino
-      .replace("@c.us", "")
-      .replace("@lid", "");
+      if (status === 429 || mensagemErro.includes("429")) {
+        await client.sendMessage(
+          userId,
+          "⏳ *Calma lá!* Você está usando o assistente muito rápido.\nAguarde alguns instantes 🙂"
+        );
+        return;
+      }
 
-    await BotService.processarMensagem(telefoneLogico, mensagem);
+      const erroIA =
+        mensagemErro.includes("API key") ||
+        mensagemErro.includes("Gemini") ||
+        mensagemErro.includes("OpenAI") ||
+        status === 500 ||
+        status === 503;
 
-  } catch (error: any) {
-    const mensagemErro = error?.message || "";
-    const status = error?.status || error?.code;
+      if (erroIA) {
+        await client.sendMessage(
+          userId,
+          "🤖 *IA temporariamente indisponível.*\nTente novamente em instantes."
+        );
+        return;
+      }
 
-    if (status === 429 || mensagemErro.includes("429")) {
       await client.sendMessage(
-        destino,
-        "⏳ *Calma lá!* Você está usando o assistente muito rápido.\n" +
-        "Aguarde alguns instantes 🙂"
+        userId,
+        "❌ Ocorreu um erro inesperado.\nTente novamente mais tarde."
       );
-      return;
     }
-
-    const erroIA =
-      mensagemErro.includes("API key") ||
-      mensagemErro.includes("generative") ||
-      mensagemErro.includes("Gemini") ||
-      mensagemErro.includes("OpenAI") ||
-      status === 500 ||
-      status === 503;
-
-    if (erroIA) {
-      await client.sendMessage(
-        destino,
-        "🤖 *IA temporariamente indisponível.*\n" +
-        "Tente novamente em instantes."
-      );
-      return;
-    }
-
-    await client.sendMessage(
-      destino,
-      "❌ Ocorreu um erro inesperado.\nTente novamente mais tarde."
-    );
-  }
-});
-
+  });
 
   client.initialize();
 }

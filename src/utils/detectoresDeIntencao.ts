@@ -1,11 +1,12 @@
 import { extrairMesEAno } from "../utils/periodo";
 
 export type DetectorContexto = {
-  telefone: string;
+  userId: string;      // 🔑 identidade do chat
   usuarioId: string;
   mensagem: string;
   mensagemNormalizada: string;
 };
+
 
 export type Detector = {
   nome: string;
@@ -28,14 +29,14 @@ export const detectores: Detector[] = [
       /\b(despesa|despesas|gasto|gastos)\b/.test(mensagemNormalizada) &&
       !!extrairMesEAno(mensagem),
 
-    executar: async ({ telefone, usuarioId, mensagem }) => {
+    executar: async ({ userId, usuarioId, mensagem }) => {
       const mesAno = extrairMesEAno(mensagem)!;
       const { DespesasPorMesHandler } = await require(
         "../services/handlers/DespesasPorMesHandler"
       );
 
       await DespesasPorMesHandler.executar(
-        telefone,
+        userId,
         usuarioId,
         mesAno.mes,
         mesAno.ano,
@@ -53,14 +54,14 @@ export const detectores: Detector[] = [
       /\b(receita|receitas|entrada|entradas)\b/.test(mensagemNormalizada) &&
       !!extrairMesEAno(mensagem),
 
-    executar: async ({ telefone, usuarioId, mensagem }) => {
+    executar: async ({ userId, usuarioId, mensagem }) => {
       const mesAno = extrairMesEAno(mensagem)!;
       const { ReceitasPorMesHandler } = await require(
         "../services/handlers/ReceitasPorMesHandler"
       );
 
       await ReceitasPorMesHandler.executar(
-        telefone,
+        userId,
         usuarioId,
         mesAno.mes,
         mesAno.ano,
@@ -78,12 +79,12 @@ export const detectores: Detector[] = [
       /\b(despesas|gastos)\b/.test(mensagemNormalizada) &&
       /(ver|listar|mostrar|visualizar)?/.test(mensagemNormalizada),
 
-    executar: async ({ telefone, usuarioId }) => {
+    executar: async ({ userId, usuarioId }) => {
       const { ListarDespesasHandler } = await require(
         "../services/handlers/ListarDespesaHandler"
       );
 
-      await ListarDespesasHandler.executar(telefone, usuarioId, false);
+      await ListarDespesasHandler.executar(userId, usuarioId, false);
     }
   },
 
@@ -96,12 +97,12 @@ export const detectores: Detector[] = [
       /\b(receitas|entradas)\b/.test(mensagemNormalizada) &&
       /(ver|listar|mostrar|visualizar)?/.test(mensagemNormalizada),
 
-    executar: async ({ telefone, usuarioId }) => {
+    executar: async ({ userId, usuarioId }) => {
       const { ListarReceitasHandler } = await require(
         "../services/handlers/ListarReceitaHandler"
       );
 
-      await ListarReceitasHandler.executar(telefone, usuarioId, false);
+      await ListarReceitasHandler.executar(userId, usuarioId, false);
     }
   },
   // ===============================
@@ -114,13 +115,13 @@ export const detectores: Detector[] = [
       /\b(lembrete|lembretes|avisos|agenda|recordatorio|recordatorios)\b/.test(mensagemNormalizada) &&
       /(quais|meus|minhas|listar|ver|mostrar|exibir|tem|tenho)/.test(mensagemNormalizada),
 
-    executar: async ({ telefone, usuarioId }) => {
+    executar: async ({ userId, usuarioId }) => {
       const { ListarLembretesHandler } = require(
         "../services/handlers/ListarLembretesHandler"
       );
 
       await ListarLembretesHandler.executar(
-        telefone,
+        userId,
         usuarioId
       );
     }

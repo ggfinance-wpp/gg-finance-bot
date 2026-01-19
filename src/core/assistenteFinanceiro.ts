@@ -1,3 +1,4 @@
+// assistenteFinanceiro.ts
 import { InterpretadorGemini } from "../ia/interpretadorGemini";
 import { RespostaGemini } from "../ia/respostaGemini";
 
@@ -26,86 +27,89 @@ import { CategoriaHandler } from "../services/handlers/financeiro/CategoriaHandl
 import { ListarReceitasHandler } from "../services/handlers/financeiro/ListarReceitaHandler";
 import { rateLimitIA } from "../middlewares/rateLimit.middleware";
 
-
 export class AssistenteFinanceiro {
-  static async processar(telefone: string, mensagem: string) {
-    const usuario = await UsuarioRepository.buscarPorTelefone(telefone);
-    const contexto = await ContextoRepository.obter(telefone);
+  static async processar(userId: string, mensagem: string) {
+    const usuario = await UsuarioRepository.buscarPorUserId(userId);
+    const contexto = await ContextoRepository.obter(userId);
 
-    // 🔧 Reset de contexto
+    // 🔧 RESET DE CONTEXTO
     const msgLower = mensagem.trim().toLowerCase();
     if (msgLower === "#reset" || msgLower === "/reset") {
-      await ContextoRepository.limpar(telefone);
-      await EnviadorWhatsApp.enviar(telefone, "🧹 Contexto apagado! Podemos começar do zero.");
+      await ContextoRepository.limpar(userId);
+      await EnviadorWhatsApp.enviar(
+        userId,
+        "🧹 Contexto apagado! Podemos começar do zero."
+      );
       return;
     }
 
-    // 0️⃣ Saudação simples (sem IA)
+    // 0️⃣ SAUDAÇÃO SIMPLES
     if (usuario && !contexto) {
-      const msg = mensagem.toLowerCase().trim();
       const ehSaudacao =
-        ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"].some(s => msg.startsWith(s)) &&
-        msg.length <= 20 &&
-        !/\d/.test(msg);
+        ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"].some(s =>
+          msgLower.startsWith(s)
+        ) &&
+        msgLower.length <= 20 &&
+        !/\d/.test(msgLower);
 
       if (ehSaudacao) {
         await EnviadorWhatsApp.enviar(
-          telefone,
+          userId,
           `👋 Olá, *${usuario.nome?.split(" ")[0] || "tudo bem"}*! Como posso te ajudar hoje?`
         );
         return;
       }
     }
 
-    // 1️⃣ CONTEXTO ATIVO (máquina de estados)
+    // 1️⃣ CONTEXTO ATIVO
     if (contexto) {
       switch (contexto.etapa) {
         case "criando_categoria_nome":
-          return CategoriaHandler.salvarNome(telefone, mensagem);
+          return CategoriaHandler.salvarNome(userId, mensagem);
 
         case "criando_categoria_tipo":
-          return CategoriaHandler.salvarTipo(telefone, mensagem, usuario!.id);
+          return CategoriaHandler.salvarTipo(userId, mensagem, usuario!.id);
 
         case "informar_data_agendada":
-          return AgendamentoHandler.salvarData(telefone, mensagem, usuario!.id);
+          return AgendamentoHandler.salvarData(userId, mensagem, usuario!.id);
 
         case "criando_lembrete_texto":
-          return LembreteHandler.salvarTexto(telefone, mensagem);
+          return LembreteHandler.salvarTexto(userId, mensagem);
 
         case "criando_lembrete_data":
-          return LembreteHandler.salvarData(telefone, mensagem, usuario!.id);
+          return LembreteHandler.salvarData(userId, mensagem, usuario!.id);
 
         case "criando_lembrete_valor":
-          return LembreteHandler.salvarValor(telefone, mensagem, usuario!.id);
+          return LembreteHandler.salvarValor(userId, mensagem, usuario!.id);
 
         case "complementar_mes_lembrete":
-          return LembreteHandler.salvarMes(telefone, mensagem, usuario!.id);
+          return LembreteHandler.salvarMes(userId, mensagem, usuario!.id);
 
         case "editar_transacao_id":
-          return EditarTransacaoHandler.selecionar(telefone, mensagem);
+          return EditarTransacaoHandler.selecionar(userId, mensagem);
 
-        case "editar_transacao_opcao": {
-          const msg = mensagem.trim();
-          if (msg.startsWith("1")) return EditarTransacaoHandler.editarValor(telefone, Number(msg));
-          if (msg.startsWith("2")) return EditarTransacaoHandler.editarDescricao(telefone, msg);
+        case "editar_transacao_opcao":
+          if (mensagem.startsWith("1"))
+            return EditarTransacaoHandler.editarValor(userId, Number(mensagem));
+          if (mensagem.startsWith("2"))
+            return EditarTransacaoHandler.editarDescricao(userId, mensagem);
           break;
-        }
 
         case "excluir_transacao_id":
-          return ExcluirTransacaoHandler.confirmar(telefone, mensagem);
+          return ExcluirTransacaoHandler.confirmar(userId, mensagem);
 
         case "confirmar_exclusao":
-          return ExcluirTransacaoHandler.executar(telefone, mensagem);
+          return ExcluirTransacaoHandler.executar(userId, mensagem);
 
         case "excluir_lembrete_escolher":
-          return ExcluirLembreteHandler.escolher(telefone, mensagem);
+          return ExcluirLembreteHandler.escolher(userId, mensagem);
 
         case "confirmar_exclusao_lembrete":
-          return ExcluirLembreteHandler.executar(telefone, mensagem);
+          return ExcluirLembreteHandler.executar(userId, mensagem);
 
         case "confirmar_criar_recorrencia":
           return RecorrenciaHandler.confirmarCriacao(
-            telefone,
+            userId,
             usuario!.id,
             mensagem,
             contexto.dados
@@ -113,7 +117,7 @@ export class AssistenteFinanceiro {
 
         case "informar_valor_recorrencia":
           return RecorrenciaHandler.salvarValor(
-            telefone,
+            userId,
             usuario!.id,
             mensagem,
             contexto.dados
@@ -121,25 +125,24 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 2️⃣ Cadastro obrigatório
+    // 2️⃣ CADASTRO OBRIGATÓRIO
     if (!usuario) {
-      return CadastroUsuarioHandler.executar(telefone, mensagem);
+      return CadastroUsuarioHandler.executar(userId, mensagem);
     }
 
-    // 3️⃣ DETECTORES (consultas determinísticas, sem IA)
+    // 3️⃣ DETECTORES
     const mensagemNormalizada = mensagem
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
     const ctx = {
-      telefone,
+      userId,
       usuarioId: usuario.id,
       mensagem,
       mensagemNormalizada
     };
 
-    // 3️⃣ DETECTORES (consultas determinísticas, sem IA)
     for (const detector of detectores) {
       if (detector.match(ctx)) {
         await detector.executar(ctx);
@@ -147,18 +150,23 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 🚦 RATE LIMIT (ANTES DE GASTAR IA)
+    // 🚦 RATE LIMIT
     if (!rateLimitIA(usuario.id)) {
       await EnviadorWhatsApp.enviar(
-        telefone,
+        userId,
         "⏳ Você está usando rápido demais. Aguarde um pouco antes de tentar novamente."
       );
       return;
     }
 
-    // 4️⃣ IA — interpretação semântica
-    const interpretacao = await InterpretadorGemini.interpretarMensagem(mensagem, { usuario });
-    const intents = Array.isArray(interpretacao) ? interpretacao : [interpretacao];
+    // 4️⃣ IA
+    const interpretacao = await InterpretadorGemini.interpretarMensagem(
+      mensagem,
+      { usuario }
+    );
+    const intents = Array.isArray(interpretacao)
+      ? interpretacao
+      : [interpretacao];
 
     let processou = false;
 
@@ -167,7 +175,7 @@ export class AssistenteFinanceiro {
         case "registrar_despesa":
           processou = true;
           await RegistrarDespesaHandler.executar(
-            telefone,
+            userId,
             usuario.id,
             intent.valor,
             intent.descricao,
@@ -180,7 +188,7 @@ export class AssistenteFinanceiro {
         case "registrar_receita":
           processou = true;
           await RegistrarReceitaHandler.executar(
-            telefone,
+            userId,
             usuario.id,
             intent.valor,
             intent.descricao,
@@ -191,25 +199,25 @@ export class AssistenteFinanceiro {
 
         case "criar_categoria":
           processou = true;
-          await CategoriaHandler.iniciarCriacao(telefone);
+          await CategoriaHandler.iniciarCriacao(userId);
           break;
 
         case "criar_lembrete":
           processou = true;
           await LembreteHandler.iniciar(
-            telefone,
+            userId,
             usuario.id,
             intent.mensagem,
             intent.data,
             intent.valor ?? null,
-            mensagem // 👈 FRASE ORIGINAL
+            mensagem
           );
           break;
 
         case "criar_recorrencia":
           processou = true;
           await RecorrenciaHandler.iniciarCriacao(
-            telefone,
+            userId,
             usuario.id,
             intent.descricao ?? null,
             intent.valor ?? null,
@@ -223,47 +231,51 @@ export class AssistenteFinanceiro {
 
         case "ver_saldo":
           processou = true;
-          await RelatorioHandler.executar(telefone, usuario.id);
+          await RelatorioHandler.executar(userId, usuario.id);
           break;
 
         case "ver_gastos_por_categoria":
           processou = true;
-          await GastoPorCategoriaHandler.executar(telefone, usuario.id);
+          await GastoPorCategoriaHandler.executar(userId, usuario.id);
           break;
 
         case "ver_gastos_da_categoria":
           if (intent.categoria) {
             processou = true;
-            await GastosDaCategoriaHandler.executar(telefone, usuario.id, intent.categoria);
+            await GastosDaCategoriaHandler.executar(
+              userId,
+              usuario.id,
+              intent.categoria
+            );
           }
           break;
 
         case "ver_receitas_detalhadas":
           processou = true;
-          await ListarReceitasHandler.executar(telefone, usuario.id);
+          await ListarReceitasHandler.executar(userId, usuario.id);
           break;
 
         case "ver_despesas_detalhadas":
           processou = true;
-          await ListarDespesasHandler.executar(telefone, usuario.id);
+          await ListarDespesasHandler.executar(userId, usuario.id);
           break;
 
         case "ver_perfil":
           processou = true;
-          await PerfilHandler.executar(telefone, usuario.id);
+          await PerfilHandler.executar(userId, usuario.id);
           break;
 
         case "ajuda":
           processou = true;
           await EnviadorWhatsApp.enviar(
-            telefone,
+            userId,
             "📌 *Como posso te ajudar?*\n\n" +
-            "• Registrar *despesa*\n" +
-            "• Registrar *receita*\n" +
-            "• Ver *saldo*\n" +
-            "• Ver *gastos por categoria*\n" +
-            "• Criar *lembrete*\n" +
-            "• Criar *categoria*"
+              "• Registrar *despesa*\n" +
+              "• Registrar *receita*\n" +
+              "• Ver *saldo*\n" +
+              "• Ver *gastos por categoria*\n" +
+              "• Criar *lembrete*\n" +
+              "• Criar *categoria*"
           );
           break;
       }
@@ -271,7 +283,7 @@ export class AssistenteFinanceiro {
 
     if (processou) return;
 
-    // 5️⃣ Fallback conversacional
+    // 5️⃣ FALLBACK
     const resposta = await RespostaGemini.gerar(`
 Você é o assistente financeiro *GG Finance*.
 Responda em português e apenas sobre finanças.
@@ -279,6 +291,6 @@ Mensagem:
 "${mensagem}"
     `);
 
-    await EnviadorWhatsApp.enviar(telefone, resposta);
+    await EnviadorWhatsApp.enviar(userId, resposta);
   }
 }

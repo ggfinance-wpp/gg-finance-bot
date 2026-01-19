@@ -9,6 +9,7 @@ datasource db {
 
 model Usuario {
   id        String      @id @default(uuid())
+  userId    String   @unique  // 🔑 chat.id._serialized
   telefone  String      @unique
   nome      String?
   cpfCnpj   String?
