@@ -3,6 +3,7 @@ import { Client, LocalAuth } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import { logger } from "../utils/logger";
 import { BotService } from "../services/bot.service";
+import { EnviadorWhatsApp } from "../services/EnviadorWhatsApp";
 
 export const client = new Client({
   authStrategy: new LocalAuth(),
@@ -52,7 +53,7 @@ export function startWhatsAppBot() {
       const status = error?.status || error?.code;
 
       if (status === 429 || mensagemErro.includes("429")) {
-        await client.sendMessage(
+        await EnviadorWhatsApp.enviar(
           userId,
           "⏳ *Calma lá!* Você está usando o assistente muito rápido.\nAguarde alguns instantes 🙂"
         );
@@ -67,14 +68,14 @@ export function startWhatsAppBot() {
         status === 503;
 
       if (erroIA) {
-        await client.sendMessage(
+        await EnviadorWhatsApp.enviar(
           userId,
           "🤖 *IA temporariamente indisponível.*\nTente novamente em instantes."
         );
         return;
       }
 
-      await client.sendMessage(
+      await EnviadorWhatsApp.enviar(
         userId,
         "❌ Ocorreu um erro inesperado.\nTente novamente mais tarde."
       );

@@ -1,14 +1,19 @@
 import { client } from "../whatsapp/bot";
 
 export class EnviadorWhatsApp {
-  static async enviar(telefone: string, mensagem: string) {
+  static async enviar(destino: string, mensagem: string) {
     try {
-      const id = telefone.includes("@c.us") ? telefone : `${telefone}@c.us`;
-
-      await client.sendMessage(id, mensagem);
-      console.log(`📩 Enviado para ${telefone}: ${mensagem}`);
-    } catch (erro) {
-      console.error("❌ Erro ao enviar mensagem:", erro);
+      // 1️⃣ tenta resolver o chat (funciona com @lid)
+      const chat = await client.getChatById(destino);
+      await chat.sendMessage(mensagem);
+      return;
+    } catch (error) {
+      // 2️⃣ fallback seguro (último recurso)
+      try {
+        await client.sendMessage(destino, mensagem);
+      } catch (err) {
+        console.error("❌ Falha definitiva ao enviar mensagem:", err);
+      }
     }
   }
 }
