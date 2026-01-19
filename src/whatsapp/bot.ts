@@ -33,69 +33,63 @@ export function startWhatsAppBot() {
 
   client.on("message", async (msg) => {
 
-    // ❌ ignora grupos
-    if (msg.from.endsWith("@g.us")) return;
+  // ❌ ignora grupos
+  if (msg.from.endsWith("@g.us")) return;
 
-    const mensagem = msg.body;
+  const mensagem = msg.body;
 
-    // 🔑 ID REAL DO CONTATO (compatível com @lid)
-    let rawId = msg.author || msg.from;
+  // 🔑 USA O CHAT COMO DESTINO (REGRA FINAL)
+  const chat = await msg.getChat();
+  const destino = chat.id._serialized; // pode ser @c.us ou @lid
 
-    // remove sufixos inválidos
-    if (rawId.endsWith("@lid")) {
-      rawId = rawId.replace("@lid", "@c.us");
-    }
+  console.log(`📩 ${destino}: ${mensagem}`);
+  console.log("Aguardando nova mensagem");
 
-    // segurança final
-    if (!rawId.endsWith("@c.us")) {
-      console.log("⚠️ ID inválido ignorado:", rawId);
+  try {
+    // backend continua usando telefone se quiser
+    const telefoneLogico = destino
+      .replace("@c.us", "")
+      .replace("@lid", "");
+
+    await BotService.processarMensagem(telefoneLogico, mensagem);
+
+  } catch (error: any) {
+    const mensagemErro = error?.message || "";
+    const status = error?.status || error?.code;
+
+    if (status === 429 || mensagemErro.includes("429")) {
+      await client.sendMessage(
+        destino,
+        "⏳ *Calma lá!* Você está usando o assistente muito rápido.\n" +
+        "Aguarde alguns instantes 🙂"
+      );
       return;
     }
 
-    const telefone = rawId.replace("@c.us", "");
+    const erroIA =
+      mensagemErro.includes("API key") ||
+      mensagemErro.includes("generative") ||
+      mensagemErro.includes("Gemini") ||
+      mensagemErro.includes("OpenAI") ||
+      status === 500 ||
+      status === 503;
 
-    console.log(`📩 ${telefone}: ${mensagem}`);
-    console.log("Aguardando nova mensagem");
-
-    try {
-      await BotService.processarMensagem(telefone, mensagem);
-
-    } catch (error: any) {
-      const mensagemErro = error?.message || "";
-      const status = error?.status || error?.code;
-
-      if (status === 429 || mensagemErro.includes("429")) {
-        await EnviadorWhatsApp.enviar(
-          telefone,
-          "⏳ *Calma lá!* Você está usando o assistente muito rápido.\n" +
-          "Aguarde alguns instantes 🙂"
-        );
-        return;
-      }
-
-      const erroIA =
-        mensagemErro.includes("API key") ||
-        mensagemErro.includes("generative") ||
-        mensagemErro.includes("Gemini") ||
-        mensagemErro.includes("OpenAI") ||
-        status === 500 ||
-        status === 503;
-
-      if (erroIA) {
-        await EnviadorWhatsApp.enviar(
-          telefone,
-          "🤖 *IA temporariamente indisponível.*\n" +
-          "Tente novamente em instantes."
-        );
-        return;
-      }
-
-      await EnviadorWhatsApp.enviar(
-        telefone,
-        "❌ Ocorreu um erro inesperado.\nTente novamente mais tarde."
+    if (erroIA) {
+      await client.sendMessage(
+        destino,
+        "🤖 *IA temporariamente indisponível.*\n" +
+        "Tente novamente em instantes."
       );
+      return;
     }
-  });
+
+    await client.sendMessage(
+      destino,
+      "❌ Ocorreu um erro inesperado.\nTente novamente mais tarde."
+    );
+  }
+});
+
 
   client.initialize();
 }
