@@ -38,17 +38,17 @@ export function startWhatsAppBot() {
 
     const mensagem = msg.body;
 
-    // 🔑 CHAT REAL (resolve @lid corretamente)
-    const chat = await msg.getChat();
-    const chatId = chat.id._serialized;
+    // 🔑 CONTATO REAL (funciona com @lid)
+    const contact = await msg.getContact();
+    const contactId = contact.id._serialized;
 
-    // garante que é contato individual
-    if (!chatId.endsWith("@c.us")) {
-      console.log("⚠️ Chat inválido ignorado:", chatId);
+    // segurança extra
+    if (!contactId.endsWith("@c.us")) {
+      console.log("⚠️ Contact inválido ignorado:", contactId);
       return;
     }
 
-    const telefone = chatId.replace("@c.us", "");
+    const telefone = contactId.replace("@c.us", "");
 
     console.log(`📩 ${telefone}: ${mensagem}`);
     console.log("Aguardando nova mensagem");
