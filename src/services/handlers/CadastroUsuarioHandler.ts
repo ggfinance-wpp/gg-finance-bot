@@ -5,31 +5,41 @@ import { validarCpfCnpj } from "../../validators/documento.validator";
 
 export class CadastroUsuarioHandler {
 
-  static async executar(telefone: string, mensagem: string) {
+  static async executar(userId: string, mensagem: string) {
 
-    let contexto = await ContextoRepository.obter(telefone);
+    const telefone = userId.replace(/@(c\.us|lid)$/, "");
 
+
+    let contexto = await ContextoRepository.obter(userId);
+
+    // 🟡 INÍCIO DO CADASTRO
     if (!contexto) {
 
-      const existe = await UsuarioRepository.buscarPorTelefone(telefone);
+      const existe = await UsuarioRepository.buscarPorUserId(userId);
 
       if (existe) {
-        return EnviadorWhatsApp.enviar(telefone, "✅ Você já está cadastrado!");
+        return EnviadorWhatsApp.enviar(
+          userId,
+          "✅ Você já está cadastrado!"
+        );
       }
 
-      await ContextoRepository.definir(telefone, "cadastro_nome", {});
+      await ContextoRepository.definir(userId, "cadastro_nome", {});
 
       return EnviadorWhatsApp.enviar(
-        telefone,
+        userId,
         "👤 Pra começar, me diga seu *nome completo*."
       );
     }
 
+    // 🟡 ETAPA: NOME
     if (contexto.etapa === "cadastro_nome") {
 
       let nomeBruto = mensagem.trim();
 
-      const match = nomeBruto.match(/(?:meu nome é|me chamo|sou o|sou a)\s+(.+)/i);
+      const match = nomeBruto.match(
+        /(?:meu nome é|me chamo|sou o|sou a)\s+(.+)/i
+      );
       if (match) nomeBruto = match[1].trim();
 
       if (
@@ -39,27 +49,29 @@ export class CadastroUsuarioHandler {
         nomeBruto.length < 5
       ) {
         return EnviadorWhatsApp.enviar(
-          telefone,
+          userId,
           "⚠️ Me envie seu nome completo válido."
         );
       }
 
-      await ContextoRepository.atualizar(telefone, "cadastro_cpf", {
+      await ContextoRepository.atualizar(userId, "cadastro_cpf", {
         nome: nomeBruto,
       });
 
       return EnviadorWhatsApp.enviar(
-        telefone,
+        userId,
         "🪪 Agora me envie seu *CPF ou CNPJ*."
       );
     }
 
+    // 🟡 ETAPA: CPF / CNPJ
     if (contexto.etapa === "cadastro_cpf") {
+
       const somenteNumeros = mensagem.replace(/\D/g, "");
 
       if (!validarCpfCnpj(somenteNumeros)) {
         return EnviadorWhatsApp.enviar(
-          telefone,
+          userId,
           "❌ CPF/CNPJ inválido."
         );
       }
@@ -67,15 +79,16 @@ export class CadastroUsuarioHandler {
       const dados = contexto.dados as { nome: string };
 
       await UsuarioRepository.criar({
+        userId,               // 🔑 OBRIGATÓRIO
         nome: dados.nome,
-        telefone,
-        cpfCnpj: somenteNumeros,
+        telefone,             // null se @lid
+        cpfCnpj: somenteNumeros
       });
 
-      await ContextoRepository.limpar(telefone);
+      await ContextoRepository.limpar(userId);
 
       return EnviadorWhatsApp.enviar(
-        telefone,
+        userId,
         `🎉 Cadastro concluído!\n👤 *${dados.nome}*\n🪪 *${somenteNumeros}*`
       );
     }

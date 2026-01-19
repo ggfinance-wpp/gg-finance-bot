@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:migrate": "dotenv -e .env -- prisma migrate dev --name init",
+    "db:pull": "dotenv -e .env -- prisma db pull",
+    "db:reset": "dotenv -e .env -- prisma migrate reset",
+    "db:migrate": "dotenv -e .env -- prisma migrate dev",
     "db:generate": "dotenv -e .env -- prisma generate",
     "db:deploy": "npm run db:migrate && npm run db:generate"
   },
