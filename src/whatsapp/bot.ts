@@ -66,7 +66,7 @@ export function startWhatsAppBot() {
 
     // 🔑 IDENTIDADE ÚNICA
     const userId = chat.id._serialized; // @lid ou @c.us
-    logger.info(`\nuserId: ${userId}\nmensagem: ${mensagem}\nchat: ${chat}`);
+    logger.info(`\nuserId: ${userId}\nmensagem: ${mensagem}`);
     console.log(`📩 ${userId}: ${mensagem}`);
 
     try {
