@@ -2,6 +2,7 @@ import { UsuarioRepository } from "../../repositories/usuario.repository";
 import { EnviadorWhatsApp } from "../EnviadorWhatsApp";
 import { ContextoRepository } from "../../repositories/contexto.repository";
 import { validarCpfCnpj } from "../../validators/documento.validator";
+import { contemTermoProibido, validarNomeBasico } from "../../utils/validaNome";
 
 export class CadastroUsuarioHandler {
 
@@ -9,8 +10,7 @@ export class CadastroUsuarioHandler {
 
     const telefone = userId.replace(/@(c\.us|lid)$/, "");
 
-
-    let contexto = await ContextoRepository.obter(userId);
+    const contexto = await ContextoRepository.obter(userId);
 
     // 🟡 INÍCIO DO CADASTRO
     if (!contexto) {
@@ -37,25 +37,25 @@ export class CadastroUsuarioHandler {
 
       let nomeBruto = mensagem.trim();
 
+      // remove frases comuns
       const match = nomeBruto.match(
         /(?:meu nome é|me chamo|sou o|sou a)\s+(.+)/i
       );
       if (match) nomeBruto = match[1].trim();
 
+      // ❌ validações de nome
       if (
-        nomeBruto.includes("?") ||
-        /\d/.test(nomeBruto) ||
-        nomeBruto.split(/\s+/).length < 2 ||
-        nomeBruto.length < 5
+        !validarNomeBasico(nomeBruto) ||
+        contemTermoProibido(nomeBruto)
       ) {
         return EnviadorWhatsApp.enviar(
           userId,
-          "⚠️ Me envie seu nome completo válido."
+          "⚠️ Envie seu *nome completo válido* (ex: João da Silva)."
         );
       }
 
       await ContextoRepository.atualizar(userId, "cadastro_cpf", {
-        nome: nomeBruto,
+        nome: nomeBruto
       });
 
       return EnviadorWhatsApp.enviar(
@@ -64,7 +64,7 @@ export class CadastroUsuarioHandler {
       );
     }
 
-    // 🟡 ETAPA: CPF / CNPJ
+    // 🟡 ETAPA: CPF / CNPJ (INALTERADO)
     if (contexto.etapa === "cadastro_cpf") {
 
       const somenteNumeros = mensagem.replace(/\D/g, "");
@@ -79,9 +79,9 @@ export class CadastroUsuarioHandler {
       const dados = contexto.dados as { nome: string };
 
       await UsuarioRepository.criar({
-        userId,               // 🔑 OBRIGATÓRIO
+        userId,
         nome: dados.nome,
-        telefone,             // null se @lid
+        telefone,
         cpfCnpj: somenteNumeros
       });
 
