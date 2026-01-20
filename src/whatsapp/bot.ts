@@ -26,9 +26,32 @@ export function startWhatsAppBot() {
     qrcode.generate(qr, { small: true });
   });
 
-  client.on("ready", () => {
+  client.on("ready", async () => {
     logger.info("✅ WhatsApp conectado e pronto!");
+
+    // 🔥 PATCH GLOBAL — desativa sendSeen bugado do WhatsApp Web
+    try {
+      const page = (client as any).pupPage;
+
+      if (!page) {
+        logger.warn("⚠️ puppeteer page não encontrada para patch sendSeen");
+        return;
+      }
+
+      await page.evaluate(() => {
+        // @ts-ignore
+        if (window.WWebJS && window.WWebJS.sendSeen) {
+          // @ts-ignore
+          window.WWebJS.sendSeen = async () => { };
+        }
+      });
+
+      logger.info("🛡️ Patch sendSeen aplicado com sucesso");
+    } catch (err) {
+      logger.error("❌ Erro ao aplicar patch sendSeen", err);
+    }
   });
+
 
   client.on("auth_failure", () =>
     logger.error("❌ Falha na autenticação")
