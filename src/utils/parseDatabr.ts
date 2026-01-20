@@ -1,83 +1,61 @@
-/* ===========================
-   HELPERS DE DATA
-   =========================== */
-
-/**
- * Converte datas em português em um objeto Date.
- * Suporta:
- *  - "amanhã"
- *  - "dia 1", "1", "no dia 5"
- *  - "dia 5 do mês que vem"
- *  - "10/02", "10-02", "10/02/2025"
- *  - "5 de março", "5 de marco"
- */
 export function parseDataPtBr(texto: string): Date | null {
     if (!texto) return null;
-    texto = texto.toLowerCase().trim();
+
+    // normaliza: minúsculo + remove espaços extras
+    let t = texto.toLowerCase().trim();
+
+    // remove pontuação que atrapalha (vírgula, ponto, etc.)
+    // mantém / e - porque são úteis em datas
+    t = t.replace(/[.,;:!?]/g, " ").replace(/\s+/g, " ").trim();
 
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
     const mesAtual = hoje.getMonth();
 
-    // "amanhã"
-    if (texto === "amanhã" || texto === "amanha") {
+    // ✅ "amanhã" em qualquer lugar da frase (não só string exata)
+    if (/\bamanh[aã]\b/.test(t)) {
         const d = new Date();
         d.setDate(d.getDate() + 1);
+
+        // se também tiver uma data explícita na frase, prioriza a data explícita
+        // ex: "amanhã, dia 21/01/26"
+        const dataExplicita = extrairDataNumericaDeTexto(t, anoAtual, hoje);
+        if (dataExplicita) return dataExplicita;
+
         return d;
     }
 
-    // "dia 1", "1", "no dia 5" (sem mês explícito)
-    const diaSimples = extrairDiaSimples(texto);
-    if (diaSimples !== null && !texto.includes("mês que vem") && !texto.includes("mes que vem")) {
+    // ✅ tenta extrair data numérica mesmo quando está no meio do texto
+    const dataNum = extrairDataNumericaDeTexto(t, anoAtual, hoje);
+    if (dataNum) return dataNum;
+
+    // "dia 1", "no dia 5" (agora tolerante dentro do texto)
+    const diaSimples = extrairDiaSimplesFlex(t);
+    if (diaSimples !== null && !t.includes("mês que vem") && !t.includes("mes que vem")) {
         const data = new Date(anoAtual, mesAtual, diaSimples);
-        if (data < hoje) {
-            data.setMonth(data.getMonth() + 1);
-        }
+        if (data < hoje) data.setMonth(data.getMonth() + 1);
         return data;
     }
 
     // “dia 5 do mês que vem”, “5 mês que vem”
-    const mProxMes = texto.match(/(?:dia\s+)?(\d{1,2}).*(m[eê]s que vem|pr[oó]ximo m[eê]s)/);
+    const mProxMes = t.match(/(?:dia\s+)?(\d{1,2}).*(m[eê]s que vem|pr[oó]ximo m[eê]s)/);
     if (mProxMes) {
         const dia = Number(mProxMes[1]);
         return new Date(anoAtual, mesAtual + 1, dia);
     }
 
     // “próximo mês dia 5”
-    const mProxMes2 = texto.match(/(pr[oó]ximo m[eê]s|m[eê]s que vem).*(?:dia\s+)?(\d{1,2})/);
+    const mProxMes2 = t.match(/(pr[oó]ximo m[eê]s|m[eê]s que vem).*(?:dia\s+)?(\d{1,2})/);
     if (mProxMes2) {
         const dia = Number(mProxMes2[2]);
         return new Date(anoAtual, mesAtual + 1, dia);
     }
 
-
     // “dia 30 desse mês”, “30 do mês atual”
-    const mMesAtual = texto.match(/(?:dia\s+)?(\d{1,2}).*(desse m[eê]s|do m[eê]s atual|m[eê]s atual)/);
+    const mMesAtual = t.match(/(?:dia\s+)?(\d{1,2}).*(desse m[eê]s|do m[eê]s atual|m[eê]s atual)/);
     if (mMesAtual) {
         const dia = Number(mMesAtual[1]);
         return new Date(anoAtual, mesAtual, dia);
-    }
-
-
-    // dd/mm ou dd-mm
-    const m1 = texto.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
-    if (m1) {
-        const dia = Number(m1[1]);
-        const mes = Number(m1[2]) - 1;
-        let ano = anoAtual;
-        let data = new Date(ano, mes, dia);
-        if (data < hoje) ano++;
-        data = new Date(ano, mes, dia);
-        return data;
-    }
-
-    // dd/mm/aaaa
-    const m2 = texto.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (m2) {
-        const dia = Number(m2[1]);
-        const mes = Number(m2[2]) - 1;
-        const ano = Number(m2[3]);
-        return new Date(ano, mes, dia);
     }
 
     // dia + mês por extenso (ex: "5 de março")
@@ -86,7 +64,7 @@ export function parseDataPtBr(texto: string): Date | null {
         julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
     };
 
-    const m3 = texto.match(/(\d{1,2})\s+de\s+([a-zç]+)(?:\s+de\s+(\d{4}))?/);
+    const m3 = t.match(/(\d{1,2})\s+de\s+([a-zç]+)(?:\s+de\s+(\d{4}))?/);
     if (m3) {
         const dia = Number(m3[1]);
         const mesNome = m3[2];
@@ -95,17 +73,66 @@ export function parseDataPtBr(texto: string): Date | null {
         if (mes === undefined) return null;
 
         let data = new Date(ano, mes, dia);
+        if (!m3[3] && data < hoje) data.setFullYear(ano + 1);
+        return data;
+    }
 
-        // se não informou ano e a data já passou, joga para o ano que vem
-        if (!m3[3] && data < hoje) {
-            data.setFullYear(ano + 1);
-        }
+    return null;
+}
+
+function extrairDataNumericaDeTexto(t: string, anoAtual: number, hoje: Date): Date | null {
+    // ✅ 1) dd/mm/aa ou dd/mm/aaaa (prioridade)
+    const m2 = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2}|\d{4})/);
+    if (m2) {
+        const dia = Number(m2[1]);
+        const mes = Number(m2[2]) - 1;
+        let ano = Number(m2[3]);
+
+        if (ano < 100) ano = 2000 + ano;
+
+        return new Date(ano, mes, dia);
+    }
+
+    // ✅ 2) dd/mm ou dd-mm (sem ano)
+    const m1 = t.match(/(\d{1,2})[\/\-](\d{1,2})(?![\/\-]\d)/);
+    if (m1) {
+        const dia = Number(m1[1]);
+        const mes = Number(m1[2]) - 1;
+        let ano = anoAtual;
+
+        let data = new Date(ano, mes, dia);
+        if (data < hoje) ano++;
+        data = new Date(ano, mes, dia);
 
         return data;
     }
 
     return null;
 }
+
+
+/**
+ * Versão flexível do extrairDiaSimples:
+ * pega "dia 21" mesmo dentro de frase
+ */
+function extrairDiaSimplesFlex(t: string): number | null {
+    // tenta "dia 21" no meio do texto
+    const m1 = t.match(/\bdia\s+(\d{1,2})\b/);
+    if (m1) {
+        const dia = Number(m1[1]);
+        if (!isNaN(dia) && dia >= 1 && dia <= 31) return dia;
+    }
+
+    // tenta só número inteiro como texto limpo (caso ainda seja só "21")
+    const m2 = t.match(/^(?:no dia\s+|dia\s+)?(\d{1,2})$/);
+    if (m2) {
+        const dia = Number(m2[1]);
+        if (!isNaN(dia) && dia >= 1 && dia <= 31) return dia;
+    }
+
+    return null;
+}
+
 
 /**
  * Extrai um dia se o texto for algo como:

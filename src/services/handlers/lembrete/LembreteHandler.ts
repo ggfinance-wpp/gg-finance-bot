@@ -15,7 +15,6 @@ export class LembreteHandler {
 
     const hoje = new Date();
 
-    // 1️⃣ tenta parser pt-BR ("20/11", "amanhã", "dia 20")
     const pt = parseDataPtBr(dataStr);
     if (pt) {
       // 🔑 REGRA: se o parser não trouxe ano, assume o atual
@@ -41,7 +40,7 @@ export class LembreteHandler {
     mensagem: string | null,
     data: string | null,
     valor: number | null = null,
-    textoOriginal?: string // 👈 novo
+    textoOriginal?: string
   ) {
 
     // ✅ Caso ideal: IA já mandou mensagem + data + valor
@@ -139,8 +138,6 @@ export class LembreteHandler {
         "📅 Quando devo te lembrar?"
       );
     }
-
-
 
     // Só data → pedir texto
     if (data && !mensagem) {
@@ -335,7 +332,6 @@ export class LembreteHandler {
 
     const { dia, mensagem, valor } = dados;
 
-    // 1️⃣ tenta data completa direto ("20/11/2025")
     const dataCompleta = this.parseDataInteligente(mesMsg);
     if (dataCompleta) {
       await LembreteRepository.criar({
@@ -353,7 +349,6 @@ export class LembreteHandler {
       );
     }
 
-    // 2️⃣ tenta extrair mês/ano semântico
     const mesAno = extrairMesEAno(mesMsg);
 
     let mesIndex: number | null = null;
