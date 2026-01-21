@@ -4,22 +4,23 @@ import qrcode from "qrcode-terminal";
 import { logger } from "../utils/logger";
 import { BotService } from "../services/bot.service";
 import { EnviadorWhatsApp } from "../services/EnviadorWhatsApp";
+import path from "path";
+import os from "os";
 
 export const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({
+    dataPath: path.join(os.tmpdir(), "wwebjs")
+  }),
   puppeteer: {
     executablePath: "/usr/bin/chromium",
     headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",   // 🔥 CRÍTICO
+      "--disable-dev-shm-usage",
       "--disable-gpu",
-      "--disable-software-rasterizer",
       "--no-zygote",
-      "--single-process",
-      "--disable-features=site-per-process",
-      "--disable-extensions"
+      "--single-process"
     ]
   }
 });
