@@ -26,17 +26,15 @@ async function bootstrap() {
     logger.info("🛣️ Registrando rotas...");
     await appRoutes(app);
 
-    // 4️⃣ Iniciar schedulers
-    logger.info("⏰ Iniciando schedulers...");
-    await iniciarSchedulers();
-
     // 5️⃣ Iniciar WhatsApp Bot
     logger.info("🤖 Iniciando WhatsApp bot...");
     await startWhatsAppBot();
 
     // 6️⃣ Subir servidor SOMENTE se tudo estiver ok
     const PORT = env.PORT;
-
+    // 4️⃣ Iniciar schedulers
+    logger.info("⏰ Iniciando schedulers...");
+    await iniciarSchedulers();
     await app.listen({ port: PORT, host: "0.0.0.0" });
 
     logger.info(`✅ Servidor rodando em http://localhost:${PORT}`);

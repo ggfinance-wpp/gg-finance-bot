@@ -1,26 +1,20 @@
-// whatsapp.bot.ts
 import { Client, LocalAuth } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import { logger } from "../utils/logger";
-import { BotService } from "../services/bot.service";
+import { BotService } from "../services/bot.service"; // AGORA USAMOS O NOVO FLUXO
 import { EnviadorWhatsApp } from "../services/EnviadorWhatsApp";
-import path from "path";
-import os from "os";
 
 export const client = new Client({
-  authStrategy: new LocalAuth({
-    dataPath: path.join(os.tmpdir(), "wwebjs")
-  }),
+  authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: "/usr/bin/chromium",
     headless: true,
     args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--no-zygote",
-      "--single-process"
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-zygote',
+      '--single-process'
     ]
   }
 });
