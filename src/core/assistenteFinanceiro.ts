@@ -73,17 +73,11 @@ export class AssistenteFinanceiro {
         case "informar_data_agendada":
           return AgendamentoHandler.salvarData(userId, mensagem, usuario!.id);
 
-        case "criando_lembrete_texto":
-          return LembreteHandler.salvarTexto(userId, mensagem);
-
         case "criando_lembrete_data":
           return LembreteHandler.salvarData(userId, mensagem, usuario!.id);
 
         case "criando_lembrete_valor":
           return LembreteHandler.salvarValor(userId, mensagem, usuario!.id);
-
-        case "complementar_mes_lembrete":
-          return LembreteHandler.salvarMes(userId, mensagem, usuario!.id);
 
         case "editar_transacao_id":
           return EditarTransacaoHandler.selecionar(userId, mensagem);
@@ -208,7 +202,7 @@ export class AssistenteFinanceiro {
             userId,
             usuario.id,
             intent.mensagem,
-            intent.data,
+            null,
             intent.valor ?? null,
             mensagem
           );
@@ -270,12 +264,12 @@ export class AssistenteFinanceiro {
           await EnviadorWhatsApp.enviar(
             userId,
             "📌 *Como posso te ajudar?*\n\n" +
-              "• Registrar *despesa*\n" +
-              "• Registrar *receita*\n" +
-              "• Ver *saldo*\n" +
-              "• Ver *gastos por categoria*\n" +
-              "• Criar *lembrete*\n" +
-              "• Criar *categoria*"
+            "• Registrar *despesa*\n" +
+            "• Registrar *receita*\n" +
+            "• Ver *saldo*\n" +
+            "• Ver *gastos por categoria*\n" +
+            "• Criar *lembrete*\n" +
+            "• Criar *categoria*"
           );
           break;
       }

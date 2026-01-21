@@ -94,14 +94,14 @@ function extrairDataNumericaDeTexto(t: string, anoAtual: number, hoje: Date): Da
     }
 
     // ✅ 2) dd/mm ou dd-mm (sem ano)
-    const m1 = t.match(/(\d{1,2})[\/\-](\d{1,2})(?![\/\-]\d)/);
+    const m1 = t.match(/\b(\d{1,2})[\/\-](\d{1,2})\b(?!\s*\d{2,4})/);
     if (m1) {
         const dia = Number(m1[1]);
         const mes = Number(m1[2]) - 1;
         let ano = anoAtual;
 
         let data = new Date(ano, mes, dia);
-        if (data < hoje) ano++;
+        if (data < hoje && !t.match(/\b\d{4}\b/)) ano++;
         data = new Date(ano, mes, dia);
 
         return data;
