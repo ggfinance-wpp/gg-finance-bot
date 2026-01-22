@@ -7,7 +7,6 @@ export type DetectorContexto = {
   mensagemNormalizada: string;
 };
 
-
 export type Detector = {
   nome: string;
   match: (ctx: DetectorContexto) => boolean;
@@ -21,7 +20,7 @@ export type Detector = {
  */
 export const detectores: Detector[] = [
   // ===============================
-  // 📌 DESPESAS POR MÊS
+  // 📌  LISTAR DESPESAS (Por mês)
   // ===============================
   {
     nome: "despesas_por_mes",
@@ -31,47 +30,20 @@ export const detectores: Detector[] = [
 
     executar: async ({ userId, usuarioId, mensagem }) => {
       const mesAno = extrairMesEAno(mensagem)!;
+
       const { DespesasPorMesHandler } = await require(
-        "../services/handlers/DespesasPorMesHandler"
+        "../services/handlers/relatorios/DespesasPorMesHandler"
       );
 
-      await DespesasPorMesHandler.executar(
-        userId,
-        usuarioId,
-        mesAno.mes,
-        mesAno.ano,
-        false
-      );
-    }
+      await DespesasPorMesHandler.executar(userId, usuarioId, {
+        mes: mesAno.mes,
+        ano: mesAno.ano,
+      });
+    },
   },
 
   // ===============================
-  // 📌 RECEITAS POR MÊS
-  // ===============================
-  {
-    nome: "receitas_por_mes",
-    match: ({ mensagemNormalizada, mensagem }) =>
-      /\b(receita|receitas|entrada|entradas)\b/.test(mensagemNormalizada) &&
-      !!extrairMesEAno(mensagem),
-
-    executar: async ({ userId, usuarioId, mensagem }) => {
-      const mesAno = extrairMesEAno(mensagem)!;
-      const { ReceitasPorMesHandler } = await require(
-        "../services/handlers/financeiro/ReceitasPorMesHandler"
-      );
-
-      await ReceitasPorMesHandler.executar(
-        userId,
-        usuarioId,
-        mesAno.mes,
-        mesAno.ano,
-        false
-      );
-    }
-  },
-
-  // ===============================
-  // 📌 LISTAR DESPESAS (GERAL)
+  // 📌  LISTAR DESPESAS (Geral)
   // ===============================
   {
     nome: "listar_despesas",
@@ -85,11 +57,34 @@ export const detectores: Detector[] = [
       );
 
       await ListarDespesasHandler.executar(userId, usuarioId, false);
-    }
+    },
   },
 
   // ===============================
-  // 📌 LISTAR RECEITAS (GERAL)
+  // 📌 LISTAR RECEITAS (Por mês)
+  // ===============================
+  {
+    nome: "receitas_por_mes",
+    match: ({ mensagemNormalizada, mensagem }) =>
+      /\b(receita|receitas|entrada|entradas)\b/.test(mensagemNormalizada) &&
+      !!extrairMesEAno(mensagem),
+
+    executar: async ({ userId, usuarioId, mensagem }) => {
+      const mesAno = extrairMesEAno(mensagem)!;
+
+      const { ReceitasPorMesHandler } = await require(
+        "../services/handlers/relatorios/ReceitasPorMesHandler"
+      );
+
+      await ReceitasPorMesHandler.executar(userId, usuarioId, {
+        mes: mesAno.mes,
+        ano: mesAno.ano,
+      });
+    },
+  },
+
+  // ===============================
+  // 📌 LISTAR RECEITAS (Geral)
   // ===============================
   {
     nome: "listar_receitas",
@@ -103,55 +98,52 @@ export const detectores: Detector[] = [
       );
 
       await ListarReceitasHandler.executar(userId, usuarioId, false);
-    }
+    },
   },
 
   // ===============================
-  // 📌 LEMBRETES POR MÊS
+  // 📌 LISTAR LEMBRETES (Por mês)
   // ===============================
   {
     nome: "lembretes_por_mes",
     match: ({ mensagemNormalizada, mensagem }) =>
-      /\b(lembrete|lembretes|avisos|agenda|recordatorio|recordatorios)\b/.test(mensagemNormalizada) &&
-      !!extrairMesEAno(mensagem),
+      /\b(lembrete|lembretes|avisos|agenda|recordatorio|recordatorios)\b/.test(
+        mensagemNormalizada
+      ) && !!extrairMesEAno(mensagem),
 
     executar: async ({ userId, usuarioId, mensagem }) => {
       const mesAno = extrairMesEAno(mensagem)!;
 
-      const { ListarLembretesHandler } = require(
-        "../services/handlers/lembrete/ListarLembretesHandler"
+      const { LembretesPorMesHandler } = await require(
+        "../services/handlers/relatorios/LembretesPorMesHandler"
       );
 
-      await ListarLembretesHandler.executar(userId, usuarioId, {
-        porMes: true,
+      await LembretesPorMesHandler.executar(userId, usuarioId, {
         mes: mesAno.mes,
         ano: mesAno.ano,
-      }
-      );
-    }
+      });
+    },
   },
 
   // ===============================
-  // 📌 LISTAR LEMBRETES (GERAL)
+  // 📌 LISTAR LEMBRETES (Geral)
   // ===============================
-
   {
     nome: "listar_lembretes",
     match: ({ mensagemNormalizada }) =>
-      /\b(lembrete|lembretes|avisos|agenda|recordatorio|recordatorios)\b/.test(mensagemNormalizada) &&
-      /(quais|meus|minhas|listar|ver|mostrar|exibir|tem|tenho)/.test(mensagemNormalizada),
+      /\b(lembrete|lembretes|avisos|agenda|recordatorio|recordatorios)\b/.test(
+        mensagemNormalizada
+      ) &&
+      /(quais|meus|minhas|listar|ver|mostrar|exibir|tem|tenho)/.test(
+        mensagemNormalizada
+      ),
 
     executar: async ({ userId, usuarioId }) => {
-      const { ListarLembretesHandler } = require(
+      const { ListarLembretesHandler } = await require(
         "../services/handlers/lembrete/ListarLembretesHandler"
       );
 
-      await ListarLembretesHandler.executar(
-        userId,
-        usuarioId,
-      );
-    }
+      await ListarLembretesHandler.executar(userId, usuarioId);
+    },
   },
-
 ];
-

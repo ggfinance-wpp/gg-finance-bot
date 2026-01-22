@@ -215,7 +215,7 @@ export class TransacaoRepository {
           where: { id: { in: categoriaIds } },
         })
         : [];
-        
+
     return grupos
       .map((g) => {
         const total = Number(g._sum.valor ?? 0);
@@ -258,6 +258,27 @@ export class TransacaoRepository {
       orderBy: { data: "desc" },
     });
   }
+
+  static async listarDetalhadoPorTipoNoPeriodo(
+    usuarioId: string,
+    tipo: TipoTransacao,
+    dataInicio: Date,
+    dataFim: Date
+  ): Promise<TransacaoComCategoria[]> {
+    return prisma.transacao.findMany({
+      where: {
+        usuarioId,
+        tipo,
+        data: {
+          gte: dataInicio,
+          lt: dataFim, 
+        },
+      },
+      orderBy: { data: "desc" },
+      include: { categoria: true },
+    });
+  }
+
 
   static async atualizar(
     id: string,

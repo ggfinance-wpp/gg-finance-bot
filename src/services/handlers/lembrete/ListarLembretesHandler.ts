@@ -1,12 +1,11 @@
 import { LembreteRepository } from "../../../repositories/lembrete.repository";
-import { intervaloMes } from "../../../utils/periodo";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
 
 type ListarLembretesArgs = {
-  porMes?: boolean;   // ✅ "passa como argumento se ele quer ver por mes ou so lista"
-  mes?: number;       // só usado quando porMes = true (ou assume mês atual)
-  ano?: number;       // só usado quando porMes = true (ou assume mês atual)
-  limite?: number;    // default 20
+  porMes?: boolean;
+  mes?: number;
+  ano?: number;
+  limite?: number; // default 20
 };
 
 export class ListarLembretesHandler {
@@ -34,31 +33,31 @@ export class ListarLembretesHandler {
       const porMes = args?.porMes ?? false;
       const limite = args?.limite ?? this.LIMITE_PADRAO;
 
-      let lembretes: any[] = [];
-      let titulo = "";
-
-      // ✅ IF principal do "modo" (é isso que teu gestor quer)
+      // ✅ POR MÊS -> delega sem mudar lógica (mesmos defaults)
       if (porMes) {
-        // se pediu por mês mas não veio mês/ano, assume mês atual
         const alvo =
           args?.mes && args?.ano
             ? { mes: args.mes, ano: args.ano }
             : this.obterMesAnoAtual();
 
-        const { inicio, fim } = intervaloMes(alvo.mes, alvo.ano);
+        const { LembretesPorMesHandler } = await require(
+          "../relatorios/LembretesPorMesHandler"
+        );
 
-        lembretes =
-          (await LembreteRepository.listarPorPeriodo(usuarioId, inicio, fim)) ?? [];
+        await LembretesPorMesHandler.executar(telefone, usuarioId, {
+          mes: alvo.mes,
+          ano: alvo.ano,
+          limite,
+        });
 
-        const mesFmt = String(alvo.mes).padStart(2, "0");
-        titulo = `📋 *Lembretes de ${mesFmt}/${alvo.ano}*`;
-      } else {
-        // ✅ modo "só lista"
-        lembretes = (await LembreteRepository.listarFuturos(usuarioId)) ?? [];
-        titulo = "📋 *Seus lembretes futuros*";
+        return;
       }
 
-      // ✅ limite padrão
+      // ✅ modo "só lista" (igual ao teu atual)
+      let lembretes = (await LembreteRepository.listarFuturos(usuarioId)) ?? [];
+      const titulo = "📋 *Seus lembretes futuros*";
+
+      // ✅ limite padrão (mesma lógica)
       if (Array.isArray(lembretes) && limite > 0) {
         lembretes = lembretes.slice(0, limite);
       }
@@ -66,9 +65,7 @@ export class ListarLembretesHandler {
       if (!Array.isArray(lembretes) || lembretes.length === 0) {
         await EnviadorWhatsApp.enviar(
           telefone,
-          porMes
-            ? "⚠️ Você não tem lembretes para esse mês."
-            : "⚠️ Você não tem lembretes futuros."
+          "⚠️ Você não tem lembretes futuros."
         );
         return;
       }
