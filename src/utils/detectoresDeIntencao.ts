@@ -1,7 +1,7 @@
 import { extrairMesEAno } from "../utils/periodo";
 
 export type DetectorContexto = {
-  userId: string;      // 🔑 identidade do chat
+  userId: string; // 🔑 identidade do chat
   usuarioId: string;
   mensagem: string;
   mensagemNormalizada: string;
@@ -20,7 +20,93 @@ export type Detector = {
  */
 export const detectores: Detector[] = [
   // ===============================
-  // 📌  LISTAR DESPESAS (Por mês)
+  // 📌 GASTOS POR CATEGORIA (resumo)
+  // Ex: "gastos por categoria", "gastos por categoria do mês passado"
+  // ===============================
+  {
+    nome: "gastos_por_categoria",
+    match: ({ mensagemNormalizada }) =>
+      /\b(gastos?|despesas?)\b/.test(mensagemNormalizada) &&
+      /\bpor\s+categori(a|as)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId, mensagem }) => {
+      const mesAno = extrairMesEAno(mensagem); // pode ser null
+
+      const { GastoPorCategoriaHandler } = await require(
+        "../services/handlers/relatorios/GastoPorCategoriaHandler"
+      );
+
+      await GastoPorCategoriaHandler.executar(
+        userId,
+        usuarioId,
+        mesAno?.mes,
+        mesAno?.ano
+      );
+    },
+  },
+
+  {
+    nome: "gastos_da_categoria_por_mes",
+    match: ({ mensagemNormalizada, mensagem }) =>
+      /\b(gastos?|despesas?)\b/.test(mensagemNormalizada) &&
+      /\bcategoria\b/.test(mensagemNormalizada) &&
+      !!extrairMesEAno(mensagem) &&
+      !/\bpor\s+categori(a|as)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId, mensagem, mensagemNormalizada }) => {
+      const mesAno = extrairMesEAno(mensagem)!;
+
+      // pega tudo depois da palavra "categoria"
+      const nomeCategoria = mensagemNormalizada
+        .split("categoria")
+        .slice(1)
+        .join("categoria")
+        .trim();
+
+      const { GastoDaCategoriaPorMesHandler } = await require(
+        "../services/handlers/relatorios/GastoDaCategoriaPorMesHandler"
+      );
+
+      await GastoDaCategoriaPorMesHandler.executar(
+        userId,
+        usuarioId,
+        nomeCategoria,
+        mesAno.mes,
+        mesAno.ano
+      );
+    },
+  },
+
+  // ===============================
+  // 📌 GASTOS DA CATEGORIA (geral)
+  // Ex: "gastos da categoria moradia"
+  // ===============================
+  {
+    nome: "gastos_da_categoria",
+    match: ({ mensagemNormalizada }) =>
+      /\b(gastos?|despesas?)\b/.test(mensagemNormalizada) &&
+      /\bcategoria\b/.test(mensagemNormalizada) &&
+      !/\bpor\s+categori(a|as)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId, mensagemNormalizada }) => {
+      const nomeCategoria = mensagemNormalizada
+        .split("categoria")
+        .slice(1)
+        .join("categoria")
+        .trim();
+
+      // ✅ arquivo que você mandou: "GastosDaCategoria.ts"
+      // ✅ classe: GastosDaCategoriaHandler
+      const { GastosDaCategoriaHandler } = await require(
+        "../services/handlers/relatorios/GastosDaCategoriaHandler"
+      );
+
+      await GastosDaCategoriaHandler.executar(userId, usuarioId, nomeCategoria);
+    },
+  },
+
+  // ===============================
+  // 📌 LISTAR DESPESAS (Por mês)
   // ===============================
   {
     nome: "despesas_por_mes",
@@ -43,12 +129,14 @@ export const detectores: Detector[] = [
   },
 
   // ===============================
-  // 📌  LISTAR DESPESAS (Geral)
+  // 📌 LISTAR DESPESAS (Geral)
+  // (não deve roubar casos com "categoria")
   // ===============================
   {
     nome: "listar_despesas",
     match: ({ mensagemNormalizada }) =>
       /\b(despesas|gastos)\b/.test(mensagemNormalizada) &&
+      !/\bcategoria\b/.test(mensagemNormalizada) &&
       /(ver|listar|mostrar|visualizar)?/.test(mensagemNormalizada),
 
     executar: async ({ userId, usuarioId }) => {

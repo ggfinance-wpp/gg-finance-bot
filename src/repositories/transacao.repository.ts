@@ -271,7 +271,7 @@ export class TransacaoRepository {
         tipo,
         data: {
           gte: dataInicio,
-          lt: dataFim, 
+          lt: dataFim,
         },
       },
       orderBy: { data: "desc" },
@@ -309,6 +309,36 @@ export class TransacaoRepository {
       data: { status },
     });
   }
+  static async listarDespesasPorCategoriaNomePorPeriodo(
+    usuarioId: string,
+    nomeCategoria: string,
+    dataInicio: Date,
+    dataFim: Date
+  ): Promise<Transacao[]> {
+    const categoria = await CategoriaRepository.buscarPorNome(
+      usuarioId,
+      nomeCategoria
+    );
+
+    if (!categoria) {
+      return [];
+    }
+
+    return prisma.transacao.findMany({
+      where: {
+        usuarioId,
+        tipo: "despesa",
+        status: StatusTransacao.concluida,
+        categoriaId: categoria.id,
+        data: {
+          gte: dataInicio,
+          lt: dataFim, // fim exclusivo
+        },
+      },
+      orderBy: { data: "desc" },
+    });
+  }
+
 
   static async atualizarDataAgendada(
     id: string,
