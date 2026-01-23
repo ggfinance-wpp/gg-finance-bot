@@ -6,6 +6,40 @@ import { extrairMesEAno } from "../../../utils/periodo";
 
 export class LembreteHandler {
 
+  private static inicioDoDia(d: Date) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  }
+
+  private static dataEhPassada(data: Date) {
+    const hoje = this.inicioDoDia(new Date());
+    const alvo = this.inicioDoDia(data);
+    return alvo.getTime() < hoje.getTime();
+  }
+
+  private static async bloquearSePassado(
+    telefone: string,
+    mensagem: string,
+    valor: number | null,
+    data: Date
+  ) {
+    if (!this.dataEhPassada(data)) return false;
+
+    await ContextoRepository.salvar(telefone, {
+      etapa: "criando_lembrete_data",
+      dados: { mensagem, valor }
+    });
+
+    await EnviadorWhatsApp.enviar(
+      telefone,
+      `⚠️ Essa data (*${data.toLocaleDateString("pt-BR")}*) já passou.\n` +
+      `📅 Me diga uma data a partir de hoje (ex: *hoje*, *amanhã*, *25/01*).`
+    );
+
+    return true;
+  }
+
   /**
    * Tenta interpretar a data tanto em formato pt-BR ("20/11", "amanhã")
    * quanto em formato ISO ("2023-12-21") que vem da IA.
@@ -33,7 +67,6 @@ export class LembreteHandler {
     return null;
   }
 
-
   static async iniciar(
     telefone: string, //telefone mas recebe o userId da tabela
     usuarioId: string,
@@ -54,6 +87,10 @@ export class LembreteHandler {
 
       const dataDireta = parseDataPtBr(textoParaParse);
       if (dataDireta) {
+        // ✅ NOVO: bloqueia se for passado
+        const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor, dataDireta);
+        if (bloqueado) return;
+
         await LembreteRepository.criar({
           usuarioId,
           mensagem,
@@ -88,6 +125,10 @@ export class LembreteHandler {
       // ✅ tenta extrair data do texto original antes de perguntar
       const dataDireta = parseDataPtBr(textoParaParse);
       if (dataDireta) {
+        // ✅ NOVO: bloqueia se for passado
+        const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor, dataDireta);
+        if (bloqueado) return;
+
         await LembreteRepository.criar({
           usuarioId,
           mensagem,
@@ -116,8 +157,6 @@ export class LembreteHandler {
     }
 
     // Só mensagem → pedir data
-    // 🔑 TENTATIVA BACKEND: mensagem pode conter data embutida
-    // 🔑 TENTATIVA DEFINITIVA: usar texto original do usuário
     if (mensagem && !data) {
       const textoParaParse = textoOriginal ?? mensagem;
 
@@ -125,6 +164,10 @@ export class LembreteHandler {
       const dataDireta = parseDataPtBr(textoParaParse);
 
       if (dataDireta) {
+        // ✅ NOVO: bloqueia se for passado
+        const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor ?? null, dataDireta);
+        if (bloqueado) return;
+
         await LembreteRepository.criar({
           usuarioId,
           mensagem,
@@ -150,6 +193,10 @@ export class LembreteHandler {
           mesAno.mes - 1,
           dia
         );
+
+        // ✅ NOVO: bloqueia se for passado
+        const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor ?? null, dataInferida);
+        if (bloqueado) return;
 
         await LembreteRepository.criar({
           usuarioId,
@@ -202,7 +249,6 @@ export class LembreteHandler {
     );
   }
 
-
   private static async salvarCompletoComParse(
     telefone: string,
     usuarioId: string,
@@ -210,7 +256,6 @@ export class LembreteHandler {
     dataStr: string,
     valor: number | null
   ) {
-    // 🔑 AGORA usa o parser inteligente (pt-BR ou ISO)
     const data = this.parseDataInteligente(dataStr);
 
     if (!data) {
@@ -224,6 +269,10 @@ export class LembreteHandler {
         "❌ Não consegui entender a data."
       );
     }
+
+    // ✅ NOVO: bloqueia se for passado
+    const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor, data);
+    if (bloqueado) return;
 
     await LembreteRepository.criar({
       usuarioId,
@@ -254,7 +303,6 @@ export class LembreteHandler {
     );
   }
 
-
   static async salvarData(telefone: string, dataMsg: string, usuarioId: string) {
     const ctx = await ContextoRepository.obter(telefone);
     const dados = ctx?.dados as {
@@ -275,6 +323,10 @@ export class LembreteHandler {
     if (!data) {
       return EnviadorWhatsApp.enviar(telefone, "❌ Data inválida.");
     }
+
+    //bloqueia se for passadoo
+    const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor, data);
+    if (bloqueado) return;
 
     await LembreteRepository.criar({
       usuarioId,
@@ -314,6 +366,9 @@ export class LembreteHandler {
     if (dados?.data) {
       const data = this.parseDataInteligente(dados.data);
       if (data) {
+        const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor, data);
+        if (bloqueado) return;
+
         await LembreteRepository.criar({
           usuarioId,
           mensagem,
@@ -352,8 +407,6 @@ export class LembreteHandler {
     );
   }
 
-
-
   static async salvarMes(telefone: string, mesMsg: string, usuarioId: string) {
     const ctx = await ContextoRepository.obter(telefone);
     const dados = ctx?.dados as {
@@ -371,6 +424,9 @@ export class LembreteHandler {
 
     const dataCompleta = this.parseDataInteligente(mesMsg);
     if (dataCompleta) {
+      const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor ?? null, dataCompleta);
+      if (bloqueado) return;
+
       await LembreteRepository.criar({
         usuarioId,
         mensagem,
@@ -393,7 +449,6 @@ export class LembreteHandler {
 
     if (mesAno) {
       mesIndex = mesAno.mes - 1;
-      // 🔑 REGRA CENTRAL
       anoFinal = mesAno.ano ?? new Date().getFullYear();
     } else {
       mesIndex = normalizarMes(mesMsg);
@@ -403,12 +458,13 @@ export class LembreteHandler {
           "❌ Não entendi o mês. Ex: *este mês*, *novembro*, *mês que vem*."
         );
       }
-
-      // 🔑 REGRA CENTRAL
       anoFinal = new Date().getFullYear();
     }
 
     const dataFinal = new Date(anoFinal, mesIndex, dia);
+
+    const bloqueado = await this.bloquearSePassado(telefone, mensagem, valor ?? null, dataFinal);
+    if (bloqueado) return;
 
     await LembreteRepository.criar({
       usuarioId,
@@ -424,5 +480,4 @@ export class LembreteHandler {
       `🔔 Lembrete criado para ${dataFinal.toLocaleDateString("pt-BR")}!`
     );
   }
-
 }

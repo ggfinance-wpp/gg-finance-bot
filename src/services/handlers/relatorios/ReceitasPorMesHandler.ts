@@ -16,9 +16,6 @@ type TransacaoComCategoria = Awaited<
 export class ReceitasPorMesHandler {
   private static readonly LIMITE_PADRAO = 20;
 
-  // ✅ compatível com:
-  // executar(tel, user, mes, ano, mostrarTodas?)
-  // executar(tel, user, { mes, ano, limite, mostrarTodas })
   static async executar(
     telefone: string,
     usuarioId: string,
