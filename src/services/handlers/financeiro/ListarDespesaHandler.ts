@@ -1,22 +1,29 @@
-// src/services/handlers/ListarDespesasHandler.ts
 import { TransacaoRepository } from "../../../repositories/transacao.repository";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
-import { Categoria } from "@prisma/client";
+
+type ListarDespesasArgs = {
+  limite?: number;         // default 20
+  mostrarTodas?: boolean;  // compatível com o modo antigo
+};
 
 type TransacaoComCategoria = Awaited<
   ReturnType<typeof TransacaoRepository.listarDetalhadoPorTipo>
 >[number];
 
 export class ListarDespesasHandler {
+  private static readonly LIMITE_PADRAO = 20;
+
   static async executar(
     telefone: string,
     usuarioId: string,
-    mostrarTodas: boolean = false
+    args?: ListarDespesasArgs | boolean
   ) {
-    const despesas = await TransacaoRepository.listarDetalhadoPorTipo(
-      usuarioId,
-      "despesa"
-    );
+
+    const mostrarTodas = typeof args === "boolean" ? args : (args?.mostrarTodas ?? false);
+    const limite = typeof args === "boolean" ? this.LIMITE_PADRAO : (args?.limite ?? this.LIMITE_PADRAO);
+
+    const despesas: TransacaoComCategoria[] =
+      await TransacaoRepository.listarDetalhadoPorTipo(usuarioId, "despesa");
 
     if (!despesas.length) {
       await EnviadorWhatsApp.enviar(
@@ -33,33 +40,25 @@ export class ListarDespesasHandler {
         maximumFractionDigits: 2,
       }).format(valor);
 
-    const limitePadrao = 30;
-    const lista = mostrarTodas ? despesas : despesas.slice(0, limitePadrao);
+    const lista = mostrarTodas ? despesas : despesas.slice(0, limite);
 
     const linhas = lista.map((d) => {
-      const data = d.data
-        ? new Date(d.data).toLocaleDateString("pt-BR")
-        : "-";
+      const data = d.data ? new Date(d.data).toLocaleDateString("pt-BR") : "-";
       const desc = d.descricao ?? "Sem descrição";
-      const categoria = (d as TransacaoComCategoria).categoria?.nome ?? "Sem categoria";
-      return `• ${data} - ${desc} (${categoria}): ${formatar(
-        Number(d.valor)
-      )}`;
+      const categoria = d.categoria?.nome ?? "Sem categoria";
+      return `• ${data} - ${desc} (${categoria}): ${formatar(Number(d.valor))}`;
     });
 
-    const total = despesas.reduce(
-      (acc, d) => acc + Number(d.valor),
-      0
-    );
+    const total = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
 
     const textoLimite = mostrarTodas
       ? ""
       : `\n\n_(mostrando as ${lista.length} mais recentes)_`;
 
     const mensagem =
-      "💸 *Suas despesas registradas*\n\n" +
+      `💸 *Suas despesas registradas*\n\n` +
       linhas.join("\n") +
-      `\n\n💰 *Total de despesas:* ${formatar(total)}` +
+      `\n\n💰 *Total:* ${formatar(total)}` +
       textoLimite;
 
     await EnviadorWhatsApp.enviar(telefone, mensagem);

@@ -3,15 +3,39 @@ import { TransacaoRepository } from "../../../repositories/transacao.repository"
 import { intervaloMes } from "../../../utils/periodo";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
 
+type DespesasPorMesArgs = {
+  mes: number; // 1..12
+  ano: number;
+  mostrarTodas?: boolean;
+  limite?: number; // default 30
+};
+
 export class DespesasPorMesHandler {
+  private static readonly LIMITE_PADRAO = 30;
+
   static async executar(
     telefone: string,
     usuarioId: string,
-    mes: number, // 1..12
-    ano: number,
+    mesOuArgs: number | DespesasPorMesArgs,
+    ano?: number,
     mostrarTodas: boolean = false
   ) {
-    const { inicio, fim } = intervaloMes(mes, ano);
+    // ✅ Compatibilidade com os dois jeitos de chamar
+    const args: DespesasPorMesArgs =
+      typeof mesOuArgs === "number"
+        ? {
+            mes: mesOuArgs,
+            ano: ano as number,
+            mostrarTodas,
+          }
+        : mesOuArgs;
+
+    const mes = args.mes;
+    const anoFinal = args.ano;
+    const limite = args.limite ?? this.LIMITE_PADRAO;
+    const mostrar = args.mostrarTodas ?? false;
+
+    const { inicio, fim } = intervaloMes(mes, anoFinal);
 
     const despesas = await TransacaoRepository.filtrar({
       usuarioId,
@@ -21,10 +45,12 @@ export class DespesasPorMesHandler {
       dataFim: fim,
     });
 
+    const mesFmt = String(mes).padStart(2, "0");
+
     if (!despesas.length) {
       await EnviadorWhatsApp.enviar(
         telefone,
-        `💸 Não encontrei despesas registradas para ${String(mes).padStart(2, "0")}/${ano}.`
+        `💸 Não encontrei despesas registradas para ${mesFmt}/${anoFinal}.`
       );
       return;
     }
@@ -38,8 +64,7 @@ export class DespesasPorMesHandler {
 
     const total = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
 
-    const limitePadrao = 30;
-    const lista = mostrarTodas ? despesas : despesas.slice(0, limitePadrao);
+    const lista = mostrar ? despesas : despesas.slice(0, limite);
 
     const linhas = lista.map((d) => {
       const data = d.data ? new Date(d.data).toLocaleDateString("pt-BR") : "-";
@@ -47,12 +72,12 @@ export class DespesasPorMesHandler {
       return `• ${data} - ${desc}: ${formatar(Number(d.valor))}`;
     });
 
-    const textoLimite = mostrarTodas
+    const textoLimite = mostrar
       ? ""
       : `\n\n_(mostrando as ${lista.length} mais recentes)_`;
 
     const mensagem =
-      `💸 *Despesas de ${String(mes).padStart(2, "0")}/${ano}*\n\n` +
+      `💸 *Despesas de ${mesFmt}/${anoFinal}*\n\n` +
       linhas.join("\n") +
       `\n\n💰 *Total do mês:* ${formatar(total)}` +
       textoLimite;

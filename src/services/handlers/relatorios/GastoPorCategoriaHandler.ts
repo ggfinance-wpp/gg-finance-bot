@@ -25,7 +25,7 @@ export class GastoPorCategoriaHandler {
 
       await EnviadorWhatsApp.enviar(
         telefone,
-        `📊 Ainda não encontrei despesas concluídas ${msgPeriodo}.\n` +
+        `📊 Ainda não encontrei despesas de categorias concluídas ${msgPeriodo}.\n` +
           "Tente registrar algumas despesas primeiro e depois pergunte novamente 😉."
       );
       return;

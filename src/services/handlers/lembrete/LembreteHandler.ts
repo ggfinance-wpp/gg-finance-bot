@@ -3,9 +3,161 @@ import { ContextoRepository } from "../../../repositories/contexto.repository";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
 import { parseDataPtBr } from "../../../utils/parseDatabr";
 
-/* =======================
-   Utilitários
-======================= */
+export class LembreteHandler {
+
+  /**
+   * Tenta interpretar a data tanto em formato pt-BR ("20/11", "amanhã")
+   * quanto em formato ISO ("2023-12-21") que vem da IA.
+   */
+  private static parseDataInteligente(dataStr: string): Date | null {
+    if (!dataStr) return null;
+
+    const hoje = new Date();
+
+    const pt = parseDataPtBr(dataStr);
+    if (pt) {
+      // 🔑 REGRA: se o parser não trouxe ano, assume o atual
+      if (pt.getFullYear() === 1970 || isNaN(pt.getFullYear())) {
+        pt.setFullYear(hoje.getFullYear());
+      }
+      return pt;
+    }
+
+    // 2️⃣ tenta ISO (YYYY-MM-DD)
+    const iso = new Date(dataStr);
+    if (!isNaN(iso.getTime())) {
+      return iso;
+    }
+
+    return null;
+  }
+
+
+  static async iniciar(
+    telefone: string,
+    usuarioId: string,
+    mensagem: string | null,
+    data: string | null,
+    valor: number | null = null,
+    textoOriginal?: string
+  ) {
+
+    // ✅ Caso ideal: IA já mandou mensagem + data + valor
+    if (mensagem && data && valor !== null) {
+      return this.salvarCompletoComParse(telefone, usuarioId, mensagem, data, valor);
+    }
+
+    // Mensagem + valor, mas sem data → antes de perguntar, tenta extrair do texto original
+    if (mensagem && valor !== null && !data) {
+      const textoParaParse = textoOriginal ?? mensagem;
+
+      const dataDireta = parseDataPtBr(textoParaParse);
+      if (dataDireta) {
+        await LembreteRepository.criar({
+          usuarioId,
+          mensagem,
+          dataAlvo: dataDireta,
+          valor
+        });
+
+        await ContextoRepository.limpar(telefone);
+
+        return EnviadorWhatsApp.enviar(
+          telefone,
+          `🔔 Vou te lembrar: *${mensagem}* em *${dataDireta.toLocaleDateString("pt-BR")}*`
+        );
+      }
+
+      // se não achou data no texto, aí sim pergunta
+      await ContextoRepository.salvar(telefone, {
+        etapa: "criando_lembrete_data",
+        dados: { mensagem, valor }
+      });
+
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        "📅 Falta a data. Quando devo te lembrar disso?"
+      );
+    }
+
+    // Mensagem + data, mas sem valor → pedir valor
+    if (mensagem && valor !== null && !data) {
+      const textoParaParse = (textoOriginal ?? mensagem).toLowerCase().trim();
+
+      // ✅ tenta extrair data do texto original antes de perguntar
+      const dataDireta = parseDataPtBr(textoParaParse);
+      if (dataDireta) {
+        await LembreteRepository.criar({
+          usuarioId,
+          mensagem,
+          dataAlvo: dataDireta,
+          valor
+        });
+
+        await ContextoRepository.limpar(telefone);
+
+        return EnviadorWhatsApp.enviar(
+          telefone,
+          `🔔 Vou te lembrar: *${mensagem}* em *${dataDireta.toLocaleDateString("pt-BR")}*`
+        );
+      }
+
+      // se não achou, aí sim pergunta
+      await ContextoRepository.salvar(telefone, {
+        etapa: "criando_lembrete_data",
+        dados: { mensagem, valor }
+      });
+
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        "📅 Falta a data. Quando devo te lembrar disso?"
+      );
+    }
+
+    // Só mensagem → pedir data
+    // 🔑 TENTATIVA BACKEND: mensagem pode conter data embutida
+    // 🔑 TENTATIVA DEFINITIVA: usar texto original do usuário
+    if (mensagem && !data) {
+      const textoParaParse = textoOriginal ?? mensagem;
+
+      // tenta parser completo
+      const dataDireta = parseDataPtBr(textoParaParse);
+
+      if (dataDireta) {
+        await LembreteRepository.criar({
+          usuarioId,
+          mensagem,
+          dataAlvo: dataDireta,
+          valor
+        });
+
+        await ContextoRepository.limpar(telefone);
+
+        return EnviadorWhatsApp.enviar(
+          telefone,
+          `🔔 Vou te lembrar: *${mensagem}* em *${dataDireta.toLocaleDateString("pt-BR")}*`
+        );
+      }
+
+      // tenta fallback semântico (dia + mês)
+      const dia = extrairDiaSimples(textoParaParse);
+      const mesAno = extrairMesEAno(textoParaParse);
+
+      if (dia && mesAno) {
+        const dataInferida = new Date(
+          mesAno.ano ?? new Date().getFullYear(),
+          mesAno.mes - 1,
+          dia
+        );
+
+        await LembreteRepository.criar({
+          usuarioId,
+          mensagem,
+          dataAlvo: dataInferida,
+          valor
+        });
+
+        await ContextoRepository.limpar(telefone);
 
 function textoTemAno(t?: string) {
   return !!t && /\b\d{4}\b/.test(t);
@@ -108,10 +260,7 @@ export class LembreteHandler {
     return EnviadorWhatsApp.enviar(telefone, "📅 Quando devo te lembrar?");
   }
 
-  /* =======================
-     RECEBE DATA
-  ======================= */
-  static async salvarData(telefone: string, dataMsg: string, usuarioId: string) {
+  static async salvarValor(telefone: string, valorMsg: string, usuarioId: string) {
     const ctx = await ContextoRepository.obter(telefone);
 
     const dados = ctx?.dados as {
