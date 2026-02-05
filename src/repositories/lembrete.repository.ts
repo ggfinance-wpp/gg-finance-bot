@@ -26,6 +26,14 @@ export class LembreteRepository {
       where: { id },
     });
   }
+  static async buscarNaoEnviadosComUsuario() {
+    return prisma.lembrete.findMany({
+      where: { enviado: false },
+      include: {
+        usuario: true
+      }
+    });
+  }
 
   static async listarPorUsuario(usuarioId: string): Promise<Lembrete[]> {
     return prisma.lembrete.findMany({
@@ -97,20 +105,6 @@ export class LembreteRepository {
     return prisma.lembrete.update({
       where: { id },
       data: { enviado: true },
-    });
-  }
-  
-  static async buscarPendentesAte(agora: Date) {
-    return prisma.lembrete.findMany({
-      where: {
-        enviado: false,
-        dataAlvo: {
-          lte: agora
-        }
-      },
-      include: {
-        usuario: true // 🔑 necessário para pegar telefone
-      }
     });
   }
 

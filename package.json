@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "teste": "dotenv -e .env -- prisma migrate dev --name update-schema",
     "db:pull": "dotenv -e .env -- prisma db pull",
     "db:reset": "dotenv -e .env -- prisma migrate reset",
     "db:migrate": "dotenv -e .env -- prisma migrate dev",
@@ -34,7 +35,7 @@
     "puppeteer": "^24.29.1",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "^1.34.2",
+    "whatsapp-web.js": "^1.34.6",
     "ws": "^8.18.3",
     "zod": "^4.3.5"
   },

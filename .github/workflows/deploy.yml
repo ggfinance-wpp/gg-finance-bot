@@ -24,7 +24,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: sidneyjfg
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
@@ -34,6 +34,6 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/sidneyjfg/gg-finance-bot:latest
+            ghcr.io/${{ github.repository }}:latest
           build-args: |
             DATABASE_URL=mysql://root:@localhost:3306/gg-finance

@@ -118,21 +118,21 @@ model LogBot {
 }
 
 model Lembrete {
-  id          String    @id @default(uuid())
-  usuarioId   String
-  mensagem    String
-  valor     Float?
+  id           String    @id @default(uuid())
+  usuarioId    String
+  mensagem     String
+  valor        Float?
 
-  dataAlvo    DateTime 
+  dataAlvo     DateTime
 
   regraMensal  RegraMensal?
   diaDoMes     Int?
   nDiaUtil     Int?
 
-  criadoEm    DateTime @default(now())
-  enviado     Boolean  @default(false) // para não avisar 2x
+  criadoEm     DateTime @default(now())
+  enviado      Boolean  @default(false)
 
-  usuario     Usuario @relation("UsuarioLembretes", fields: [usuarioId], references: [id])
+  usuario      Usuario @relation("UsuarioLembretes", fields: [usuarioId], references: [id])
 }
 
 
