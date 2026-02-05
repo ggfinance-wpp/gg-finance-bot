@@ -274,34 +274,26 @@ export function normalizarMes(texto: string): number | null {
 
 // ex: "3º dia útil", "10 o dia útil", "5 dia util do próximo mês"
 
-export function extrairDiaUtilPtBr(texto: string): {
-    n: number;
-    referencia: "mes_atual" | "proximo_mes";
-} | null {
+export function extrairDiaUtilPtBr(texto: string): { n: number } | null {
     if (!texto) return null;
 
-    let t = texto
+    const t = texto
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
 
-    const regex = /\b(\d{1,2})\s*(?:o|º)?\s*dia\s+util\b/;
-    const match = t.match(regex);
+    // aceita:
+    // "10 dia util", "10º dia util", "dia 10 util", "todo mes 10 dia util"
+    const m =
+        t.match(/\b(\d{1,2})\s*(?:o|º)?\s*dia\s+util\b/) ||
+        t.match(/\bdia\s*(\d{1,2})\s*util\b/) ||
+        t.match(/\bdia\s*(\d{1,2})\s*(?:o|º)?\s*util\b/);
 
-    if (!match) return null;
+    if (!m?.[1]) return null;
 
-    const n = Number(match[1]);
+    const n = Number(m[1]);
     if (!Number.isFinite(n) || n <= 0) return null;
 
-    if (
-        t.includes("proximo mes") ||
-        t.includes("próximo mes") ||
-        t.includes("mes que vem") ||
-        t.includes("mês que vem")
-    ) {
-        return { n, referencia: "proximo_mes" };
-    }
-
-    return { n, referencia: "mes_atual" };
+    return { n };
 }
 
