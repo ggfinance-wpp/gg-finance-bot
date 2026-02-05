@@ -57,9 +57,6 @@ export class ListarReceitasHandler {
       return;
     }
 
-    // =========================
-    // ✅ GERAL (igual ao teu atual)
-    // =========================
     const receitas: TransacaoComCategoria[] =
       await TransacaoRepository.listarDetalhadoPorTipo(usuarioId, "receita");
 

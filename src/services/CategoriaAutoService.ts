@@ -10,7 +10,6 @@ export class CategoriaAutoService {
     tipo: TipoTransacao,       // "receita" | "despesa"
     descricao?: string | null
   ): Promise<Categoria> {
-    // 1) Tenta inferir categoria genérica (Streaming, Transporte, etc.)
     const categoriaGenerica = inferirCategoriaPadrao(
       tipo === "receita" ? "receita" : "despesa",
       descricao,
@@ -19,7 +18,6 @@ export class CategoriaAutoService {
 
     let nomeFinal: string | null = categoriaGenerica ?? nomeIA;
 
-    // 2) Se nada veio, categoria padrão por tipo
     if (!nomeFinal || nomeFinal.trim().length === 0) {
       nomeFinal = tipo === "receita" ? "Outras receitas" : "Outras despesas";
     }
