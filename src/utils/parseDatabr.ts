@@ -26,17 +26,6 @@ function somarAnosComLimite(dataBase: Date, quantidadeAnos: number): Date {
     return somarMesesComLimite(dataBase, quantidadeAnos * 12);
 }
 
-/**
- * Entende:
- * - "daqui 5 dias" / "daqui a 5 dias"
- * - "em 5 dias"
- * - "dentro de 5 dias"
- * - "após 5 dias"
- * - "daqui 2 semanas"
- * - "em 3 meses"
- * - "daqui 1 ano"
- * - "daqui 5" (sem unidade => dias)
- */
 function interpretarDataRelativaPtBr(textoChave: string, hoje: Date): Date | null {
     const m = textoChave.match(
         /\b(?:daqui|daq|dq|em|dentro\s+de|apos)\s*(?:a\s*)?(\d{1,4})\s*(dia|dias|semana|semanas|mes|meses|ano|anos)?(?:\s+uteis)?\b/
@@ -168,7 +157,6 @@ export function parseDataPtBr(texto: string): Date | null {
 }
 
 function extrairDataNumericaDeTexto(t: string, anoAtual: number, hoje: Date): Date | null {
-    // ✅ 1) dd/mm/aa ou dd/mm/aaaa (prioridade)
     const m2 = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4}|\d{2})/);
     if (m2) {
         const dia = Number(m2[1]);
@@ -180,7 +168,6 @@ function extrairDataNumericaDeTexto(t: string, anoAtual: number, hoje: Date): Da
         return new Date(ano, mes, dia);
     }
 
-    // ✅ 2) dd/mm ou dd-mm (sem ano)
     const m1 = t.match(/\b(\d{1,2})[\/\-](\d{1,2})\b(?!\s*\d{2,4})/);
     if (m1) {
         const dia = Number(m1[1]);
@@ -284,3 +271,37 @@ export function normalizarMes(texto: string): number | null {
 
     return null;
 }
+
+// ex: "3º dia útil", "10 o dia útil", "5 dia util do próximo mês"
+
+export function extrairDiaUtilPtBr(texto: string): {
+    n: number;
+    referencia: "mes_atual" | "proximo_mes";
+} | null {
+    if (!texto) return null;
+
+    let t = texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const regex = /\b(\d{1,2})\s*(?:o|º)?\s*dia\s+util\b/;
+    const match = t.match(regex);
+
+    if (!match) return null;
+
+    const n = Number(match[1]);
+    if (!Number.isFinite(n) || n <= 0) return null;
+
+    if (
+        t.includes("proximo mes") ||
+        t.includes("próximo mes") ||
+        t.includes("mes que vem") ||
+        t.includes("mês que vem")
+    ) {
+        return { n, referencia: "proximo_mes" };
+    }
+
+    return { n, referencia: "mes_atual" };
+}
+

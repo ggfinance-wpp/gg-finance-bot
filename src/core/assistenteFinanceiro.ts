@@ -1,4 +1,3 @@
-// assistenteFinanceiro.ts
 import { InterpretadorGemini } from "../ia/interpretadorGemini";
 import { RespostaGemini } from "../ia/respostaGemini";
 
@@ -123,12 +122,29 @@ export class AssistenteFinanceiro {
     if (!usuario) {
       return CadastroUsuarioHandler.executar(userId, mensagem);
     }
-
-    // 3️⃣ DETECTORES
+    // =========================================
+    // PRIORIDADE: criação de lembrete
+    // =========================================
     const mensagemNormalizada = mensagem
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+
+    const pareceCriacaoLembrete =
+      /\b(lembrete|me\s+lembra|me\s+lembre)\b/.test(mensagemNormalizada) &&
+      !/\b(meus|minhas|listar|ver|mostrar|exibir|quais)\b/.test(mensagemNormalizada);
+
+    if (pareceCriacaoLembrete) {
+      await LembreteHandler.iniciar(
+        userId,
+        usuario.id,
+        null,
+        null,
+        null,
+        mensagem
+      );
+      return;
+    }
 
     const ctx = {
       userId,
