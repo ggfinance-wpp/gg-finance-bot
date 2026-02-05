@@ -1,4 +1,3 @@
-// bot.service.ts
 import { AssistenteFinanceiro } from "../core/assistenteFinanceiro";
 
 export class BotService {

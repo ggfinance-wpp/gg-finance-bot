@@ -13,7 +13,7 @@ export class RegistrarDespesaHandler {
     descricao?: string,
     agendar?: boolean,
     dataAgendadaTexto?: string | null,
-    categoriaTexto?: string | null // 👈 AGORA É TEXTO, NÃO ID
+    categoriaTexto?: string | null 
   ) {
 
     const usuario = await UsuarioRepository.buscarPorId(usuarioId);
@@ -31,9 +31,6 @@ export class RegistrarDespesaHandler {
       );
     }
 
-    // ---------------------------------------------------------
-    // 📌 1) RESOLVER CATEGORIA (com IA + regras internas)
-    // ---------------------------------------------------------
     const categoria = await CategoriaAutoService.resolver(
       usuarioId,
       categoriaTexto ?? null,
@@ -44,10 +41,6 @@ export class RegistrarDespesaHandler {
     const categoriaId = categoria.id;
     const categoriaNomeUsada = categoria.nome;
 
-
-    // ---------------------------------------------------------
-    // 📌 2) TRATAR AGENDAMENTO
-    // ---------------------------------------------------------
     let dataAgendada: Date | null = null;
 
     if (agendar && dataAgendadaTexto) {
@@ -67,9 +60,6 @@ export class RegistrarDespesaHandler {
 
     const status = dataAgendada ? "pendente" : "concluida";
 
-    // ---------------------------------------------------------
-    // 📌 3) SALVAR DESPESA
-    // ---------------------------------------------------------
     const transacao = await TransacaoRepository.criar({
       usuarioId,
       tipo: "despesa",
@@ -81,9 +71,6 @@ export class RegistrarDespesaHandler {
       status
     });
 
-    // ---------------------------------------------------------
-    // 📌 4) RESPOSTA (mostrar nome, valor e categoria)
-    // ---------------------------------------------------------
     const formatar = (v: number) =>
       new Intl.NumberFormat("pt-BR", {
         style: "currency",

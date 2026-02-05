@@ -35,8 +35,6 @@ export class RecorrenciaHandler {
     descricao: string | null,
     valor: number | null,
     frequencia: Frequencia | null,
-
-    // ✅ novos campos
     tipo: TipoTransacao | null,
     regraMensal: RegraMensal | null,
     diaDoMes: number | string | null,

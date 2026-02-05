@@ -58,7 +58,7 @@ export class LembretesPorMesHandler {
             if (!Array.isArray(lembretes) || lembretes.length === 0) {
                 await EnviadorWhatsApp.enviar(
                     telefone,
-                    "⚠️ Você não tem lembretes para esse mês."
+                    "⚠️ Você não tem lembretes para esse mês em especifico."
                 );
                 return;
             }

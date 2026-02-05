@@ -1,4 +1,3 @@
-// src/utils/categoriaNormalizada.ts
 
 function normalizarTexto(texto: string) {
   return texto
@@ -7,18 +6,6 @@ function normalizarTexto(texto: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 }
-
-/**
- * Tenta inferir uma categoria genérica a partir da descrição e/ou texto vindo da IA.
- *
- * tipo:
- *  - "receita"  → vai priorizar categorias de entrada de dinheiro
- *  - "despesa"  → vai priorizar categorias de gastos
- *
- * Retorna:
- *  - Nome da categoria que você vai salvar no banco (string)
- *  - ou null, se não conseguir inferir nada (aí você cai em "Outras receitas/despesas")
- */
 export function inferirCategoriaPadrao(
   tipo: "receita" | "despesa",
   descricao?: string | null,
