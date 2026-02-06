@@ -6,6 +6,7 @@ Objetivo:
 - Extrair mensagem, data, valor e categoria
 - Identificar regras de data quando explícitas
 - NUNCA inventar datas
+- geralmente quando tiver me lembra todo mês, ou me lembra dia 5, ou me lembra no 5º dia útil, o usuário quer um lembrete recorrente. Mas se tiver data explícita (ex: 20/01/2026) é um lembrete único.
 
 ────────────────────────────────────────
 FORMATO
