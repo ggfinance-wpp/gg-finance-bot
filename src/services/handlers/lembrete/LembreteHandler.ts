@@ -3,6 +3,8 @@ import { ContextoRepository } from "../../../repositories/contexto.repository";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
 import { extrairDiaSimples, normalizarMes, parseDataPtBr } from "../../../utils/parseDatabr";
 import { extrairMesEAno } from "../../../utils/periodo";
+import { extrairDiaUtilPtBr } from "../../../utils/parseDatabr";
+import { nEsimoDiaUtil } from "../../../utils/diasUteis";
 
 export class LembreteHandler {
 
@@ -65,6 +67,27 @@ export class LembreteHandler {
     }
 
     return null;
+  }
+
+  private static resolverDiaUtil(
+    texto: string,
+    hoje: Date
+  ): Date | null {
+    const regra = extrairDiaUtilPtBr(texto);
+    if (!regra) return null;
+
+    let mes = hoje.getMonth() + 1;
+    let ano = hoje.getFullYear();
+
+    if (regra.referencia === "proximo_mes") {
+      mes++;
+      if (mes === 13) {
+        mes = 1;
+        ano++;
+      }
+    }
+
+    return nEsimoDiaUtil(mes, ano, regra.n);
   }
 
   static async iniciar(
@@ -159,6 +182,32 @@ export class LembreteHandler {
     // Só mensagem → pedir data
     if (mensagem && !data) {
       const textoParaParse = textoOriginal ?? mensagem;
+
+      // tenta dia útil
+      const dataDiaUtil = this.resolverDiaUtil(textoParaParse, new Date());
+      if (dataDiaUtil) {
+        const bloqueado = await this.bloquearSePassado(
+          telefone,
+          mensagem,
+          valor ?? null,
+          dataDiaUtil
+        );
+        if (bloqueado) return;
+
+        await LembreteRepository.criar({
+          usuarioId,
+          mensagem,
+          dataAlvo: dataDiaUtil,
+          valor
+        });
+
+        await ContextoRepository.limpar(telefone);
+
+        return EnviadorWhatsApp.enviar(
+          telefone,
+          `🔔 Vou te lembrar: *${mensagem}* em *${dataDiaUtil.toLocaleDateString("pt-BR")}*`
+        );
+      }
 
       // tenta parser completo
       const dataDireta = parseDataPtBr(textoParaParse);
@@ -319,6 +368,32 @@ export class LembreteHandler {
       return EnviadorWhatsApp.enviar(telefone, "⚠️ Não encontrei o texto do lembrete.");
     }
 
+    const dataDiaUtil = this.resolverDiaUtil(dataMsg, new Date());
+    if (dataDiaUtil) {
+      const bloqueado = await this.bloquearSePassado(
+        telefone,
+        mensagem,
+        valor,
+        dataDiaUtil
+      );
+      if (bloqueado) return;
+
+      await LembreteRepository.criar({
+        usuarioId,
+        mensagem,
+        dataAlvo: dataDiaUtil,
+        valor
+      });
+
+      await ContextoRepository.limpar(telefone);
+
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        `🔔 Lembrete criado para ${dataDiaUtil.toLocaleDateString("pt-BR")}!`
+      );
+    }
+
+
     const data = this.parseDataInteligente(dataMsg);
     if (!data) {
       return EnviadorWhatsApp.enviar(telefone, "❌ Data inválida.");
@@ -421,6 +496,31 @@ export class LembreteHandler {
     }
 
     const { dia, mensagem, valor } = dados;
+
+    const dataDiaUtil = this.resolverDiaUtil(mesMsg, new Date());
+    if (dataDiaUtil) {
+      const bloqueado = await this.bloquearSePassado(
+        telefone,
+        mensagem,
+        valor ?? null,
+        dataDiaUtil
+      );
+      if (bloqueado) return;
+
+      await LembreteRepository.criar({
+        usuarioId,
+        mensagem,
+        dataAlvo: dataDiaUtil,
+        valor: valor ?? null
+      });
+
+      await ContextoRepository.limpar(telefone);
+
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        `🔔 Lembrete criado para ${dataDiaUtil.toLocaleDateString("pt-BR")}!`
+      );
+    }
 
     const dataCompleta = this.parseDataInteligente(mesMsg);
     if (dataCompleta) {

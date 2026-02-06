@@ -1,4 +1,3 @@
-// assistenteFinanceiro.ts
 import { InterpretadorGemini } from "../ia/interpretadorGemini";
 import { RespostaGemini } from "../ia/respostaGemini";
 
@@ -10,6 +9,8 @@ import { EditarTransacaoHandler } from "../services/handlers/financeiro/EditarTr
 
 import { PerfilHandler } from "../services/handlers/PerfilHandler";
 import { CadastroUsuarioHandler } from "../services/handlers/CadastroUsuarioHandler";
+
+import { preprocessarMensagem } from "../utils/mensagem";
 
 import { UsuarioRepository } from "../repositories/usuario.repository";
 import { ContextoRepository } from "../repositories/contexto.repository";
@@ -32,9 +33,10 @@ export class AssistenteFinanceiro {
     const usuario = await UsuarioRepository.buscarPorUserId(userId);
     const contexto = await ContextoRepository.obter(userId);
 
-    // 🔧 RESET DE CONTEXTO
-    const msgLower = mensagem.trim().toLowerCase();
-    if (msgLower === "#reset" || msgLower === "/reset") {
+    const m = preprocessarMensagem(mensagem);
+    const msgNorm = m.norm;
+
+    if (msgNorm === "#reset" || msgNorm === "/reset") {
       await ContextoRepository.limpar(userId);
       await EnviadorWhatsApp.enviar(
         userId,
@@ -43,14 +45,13 @@ export class AssistenteFinanceiro {
       return;
     }
 
-    // 0️⃣ SAUDAÇÃO SIMPLES
     if (usuario && !contexto) {
       const ehSaudacao =
-        ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"].some(s =>
-          msgLower.startsWith(s)
+        ["oi", "ola", "bom dia", "boa tarde", "boa noite"].some(s =>
+          msgNorm.startsWith(s)
         ) &&
-        msgLower.length <= 20 &&
-        !/\d/.test(msgLower);
+        msgNorm.length <= 20 &&
+        !/\d/.test(msgNorm);
 
       if (ehSaudacao) {
         await EnviadorWhatsApp.enviar(
@@ -61,7 +62,6 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 1️⃣ CONTEXTO ATIVO
     if (contexto) {
       switch (contexto.etapa) {
         case "criando_categoria_nome":
@@ -119,23 +119,16 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 2️⃣ CADASTRO OBRIGATÓRIO
     if (!usuario) {
       return CadastroUsuarioHandler.executar(userId, mensagem);
     }
 
-    // 3️⃣ DETECTORES
-    const mensagemNormalizada = mensagem
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    const mensagemNormalizada = msgNorm;
 
-    const ctx = {
-      userId,
-      usuarioId: usuario.id,
-      mensagem,
-      mensagemNormalizada
-    };
+    // ============================
+    // DETECTORES
+    // ============================
+    const ctx = { userId, usuarioId: usuario.id, mensagem, mensagemNormalizada };
 
     for (const detector of detectores) {
       if (detector.match(ctx)) {
@@ -144,7 +137,6 @@ export class AssistenteFinanceiro {
       }
     }
 
-    // 🚦 RATE LIMIT
     if (!rateLimitIA(usuario.id)) {
       await EnviadorWhatsApp.enviar(
         userId,
@@ -153,14 +145,11 @@ export class AssistenteFinanceiro {
       return;
     }
 
-    // 4️⃣ IA
-    const interpretacao = await InterpretadorGemini.interpretarMensagem(
-      mensagem,
-      { usuario }
-    );
-    const intents = Array.isArray(interpretacao)
-      ? interpretacao
-      : [interpretacao];
+    const interpretacao = await InterpretadorGemini.interpretarMensagem(mensagem, {
+      usuario,
+    });
+
+    const intents = Array.isArray(interpretacao) ? interpretacao : [interpretacao];
 
     let processou = false;
 
@@ -201,8 +190,8 @@ export class AssistenteFinanceiro {
           await LembreteHandler.iniciar(
             userId,
             usuario.id,
-            intent.mensagem,
-            null,
+            intent.mensagem,          // ✅ igual ao antigo (sem fallback)
+            null,                     // ✅ igual ao antigo
             intent.valor ?? null,
             mensagem
           );
@@ -236,11 +225,7 @@ export class AssistenteFinanceiro {
         case "ver_gastos_da_categoria":
           if (intent.categoria) {
             processou = true;
-            await GastosDaCategoriaHandler.executar(
-              userId,
-              usuario.id,
-              intent.categoria
-            );
+            await GastosDaCategoriaHandler.executar(userId, usuario.id, intent.categoria);
           }
           break;
 
@@ -277,7 +262,6 @@ export class AssistenteFinanceiro {
 
     if (processou) return;
 
-    // 5️⃣ FALLBACK
     const resposta = await RespostaGemini.gerar(`
 Você é o assistente financeiro *GG Finance*.
 Responda em português e apenas sobre finanças.

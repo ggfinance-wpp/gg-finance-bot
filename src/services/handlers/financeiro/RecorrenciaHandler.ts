@@ -4,7 +4,6 @@ import { ContextoRepository } from "../../../repositories/contexto.repository";
 import { calcularProximaCobranca } from "../../../utils/recorrencia";
 import { EnviadorWhatsApp } from "../../EnviadorWhatsApp";
 
-
 function normalizar(txt: string) {
   return txt
     .trim()
@@ -28,7 +27,6 @@ function formatarDinheiro(valor: number) {
 }
 
 export class RecorrenciaHandler {
-
   static async iniciarCriacao(
     telefone: string,
     usuarioId: string,
@@ -56,41 +54,21 @@ export class RecorrenciaHandler {
       );
     }
 
+    const tipoFinal: TipoTransacao = tipo ?? "despesa";
+
     // ✅ validações mensais (dia fixo OU n-ésimo dia útil)
     let regraFinal: RegraMensal | null = regraMensal ?? null;
     let diaFinal: number | null = null;
     let nDiaFinal: number | null = null;
 
-    // ✅ tipo default: se não vier, assume despesa (mantém compatível com seu fluxo atual)
-    const tipoFinal: TipoTransacao = tipo ?? "despesa";
-
-    // ✅ valor obrigatório (pra recorrência fazer sentido)
-    if (valor === null || Number.isNaN(Number(valor))) {
-      await ContextoRepository.definir(telefone, "informar_valor_recorrencia", {
-        // guarda tudo que já temos, pra próxima msg preencher só o valor
-        descricao,
-        frequencia, 
-        tipo: tipoFinal,
-        regraMensal: regraFinal,
-        diaDoMes: diaFinal,
-        nDiaUtil: nDiaFinal,
-      });
-
-      return EnviadorWhatsApp.enviar(
-        telefone,
-        `💰 Qual o valor dessa ${tipoFinal === "receita" ? "receita" : "despesa"} recorrente? Ex: “3200”`
-      );
-    }
-
-
+    // ✅ 1) Primeiro: resolve regra mensal ANTES de pedir valor
     if (frequencia === "mensal") {
-      // Se veio "nDiaUtil", força regra N_DIA_UTIL
-      if (nDiaUtil !== null && nDiaUtil !== undefined) {
+      // Se veio nDiaUtil, força regra N_DIA_UTIL
+      if (nDiaUtil !== null && nDiaUtil !== undefined && String(nDiaUtil).trim() !== "") {
         regraFinal = "N_DIA_UTIL";
       }
 
       if (!regraFinal) {
-        // se não veio regra, tenta inferir por diaDoMes
         regraFinal = diaDoMes ? "DIA_DO_MES" : null;
       }
 
@@ -114,7 +92,6 @@ export class RecorrenciaHandler {
         }
       }
 
-      // Se mesmo assim não deu pra determinar, pergunta
       if (!regraFinal) {
         return EnviadorWhatsApp.enviar(
           telefone,
@@ -124,6 +101,23 @@ export class RecorrenciaHandler {
           "• “5º dia útil”"
         );
       }
+    }
+
+    // ✅ 2) Agora sim: se não veio valor, guarda TUDO CERTO no contexto
+    if (valor === null || Number.isNaN(Number(valor))) {
+      await ContextoRepository.definir(telefone, "informar_valor_recorrencia", {
+        descricao,
+        frequencia,
+        tipo: tipoFinal,
+        regraMensal: regraFinal,
+        diaDoMes: diaFinal,
+        nDiaUtil: nDiaFinal,
+      });
+
+      return EnviadorWhatsApp.enviar(
+        telefone,
+        `💰 Qual o valor dessa ${tipoFinal === "receita" ? "receita" : "despesa"} recorrente? Ex: “3200”`
+      );
     }
 
     // calcula próxima cobrança
@@ -136,7 +130,6 @@ export class RecorrenciaHandler {
       base: new Date(),
     });
 
-    // salva pendência no contexto
     await ContextoRepository.definir(telefone, "confirmar_criar_recorrencia", {
       descricao,
       valor: Number(valor),
@@ -173,11 +166,11 @@ export class RecorrenciaHandler {
     mensagem: string,
     dados: Record<string, any>
   ) {
-    if (ehNao(mensagem)) {  
+    if (ehNao(mensagem)) {
       await ContextoRepository.limpar(telefone);
       return EnviadorWhatsApp.enviar(telefone, "Tranquilo — cancelei a criação da recorrência ✅");
     }
-'   '
+
     if (!ehSim(mensagem)) {
       return EnviadorWhatsApp.enviar(telefone, "Só pra confirmar: responde com *Sim* ou *Não* 🙂");
     }
@@ -236,13 +229,12 @@ export class RecorrenciaHandler {
       base: new Date(),
     });
 
-    // Transação base (modelo da recorrência)
     const transacao = await prisma.transacao.create({
       data: {
         usuarioId,
         descricao,
         valor,
-        tipo, 
+        tipo,
         data: new Date(),
         dataAgendada: proximaCobranca,
         recorrente: true,
@@ -251,7 +243,7 @@ export class RecorrenciaHandler {
     });
 
     await prisma.recorrencia.create({
-      data: { 
+      data: {
         usuarioId,
         transacaoId: transacao.id,
         frequencia,
@@ -285,7 +277,6 @@ export class RecorrenciaHandler {
   static extrairNumero(txt: string): number | null {
     if (!txt) return null;
 
-    // tira R$, espaços, etc.
     let t = txt
       .toLowerCase()
       .replace(/r\$\s?/g, "")
@@ -327,7 +318,6 @@ export class RecorrenciaHandler {
     const diaDoMes = (dados?.diaDoMes as number) ?? null;
     const nDiaUtil = (dados?.nDiaUtil as number) ?? null;
 
-    // agora que temos o valor, manda pro fluxo normal de confirmação
     await ContextoRepository.definir(telefone, "confirmar_criar_recorrencia", {
       descricao,
       valor,
@@ -338,7 +328,6 @@ export class RecorrenciaHandler {
       nDiaUtil,
     });
 
-    // reaproveita sua mensagem de confirmação (padrão do iniciarCriacao)
     const titulo = tipo === "receita" ? "receita" : "despesa";
     const nDia = Number(nDiaUtil);
     const dia = Number(diaDoMes);
@@ -350,7 +339,6 @@ export class RecorrenciaHandler {
           ? (Number.isFinite(nDia) && nDia > 0 ? ` (no ${nDia}º dia útil)` : "")
           : (Number.isFinite(dia) && dia > 0 ? ` (dia ${dia})` : "");
 
-
     const resumo =
       `Beleza. Vou criar essa recorrência de *${titulo}*:\n\n` +
       `📌 *${descricao ?? "sem descrição"}*\n` +
@@ -360,7 +348,6 @@ export class RecorrenciaHandler {
 
     return EnviadorWhatsApp.enviar(telefone, resumo);
   }
-
 
   static formatar(data: Date): string {
     return data.toLocaleDateString("pt-BR");
