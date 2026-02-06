@@ -273,8 +273,11 @@ export function normalizarMes(texto: string): number | null {
 }
 
 // ex: "3º dia útil", "10 o dia útil", "5 dia util do próximo mês"
+export type DiaUtilReferencia = "mes_atual" | "proximo_mes" | null;
 
-export function extrairDiaUtilPtBr(texto: string): { n: number } | null {
+export function extrairDiaUtilPtBr(
+    texto: string
+): { n: number; referencia: DiaUtilReferencia } | null {
     if (!texto) return null;
 
     const t = texto
@@ -294,6 +297,20 @@ export function extrairDiaUtilPtBr(texto: string): { n: number } | null {
     const n = Number(m[1]);
     if (!Number.isFinite(n) || n <= 0) return null;
 
-    return { n };
+    let referencia: DiaUtilReferencia = null;
+    if (
+        /\b(proximo|prox)\s+mes\b/.test(t) ||
+        /\bmes\s+que\s+vem\b/.test(t) ||
+        /\bmes\s+seguinte\b/.test(t)
+    ) {
+        referencia = "proximo_mes";
+    } else if (
+        /\b(este|esse|deste|desse)\s+mes\b/.test(t) ||
+        /\bmes\s+atual\b/.test(t)
+    ) {
+        referencia = "mes_atual";
+    }
+
+    return { n, referencia };
 }
 
