@@ -257,4 +257,74 @@ export const detectores: Detector[] = [
       await ListarLembretesHandler.executar(userId, usuarioId);
     },
   },
+
+  // ===============================
+  // 📊 RELATÓRIO MENSAL
+  // Ex: "relatório mensal", "relatório do mês", "relatório de janeiro"
+  // ===============================
+  {
+    nome: "relatorio_mensal",
+    match: ({ mensagemNormalizada }) =>
+      /\b(relatorio|relatório)\b/.test(mensagemNormalizada) &&
+      /\b(mensal|mes|mês|do mes|do mês)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId, mensagem }) => {
+      const { RelatorioMensalHandler } = await require(
+        "../services/handlers/relatorios/RelatorioMensalHandler"
+      );
+
+      const mesAno = extrairMesEAno(mensagem);
+      
+      if (mesAno) {
+        await RelatorioMensalHandler.executar(
+          userId,
+          usuarioId,
+          mesAno.mes,
+          mesAno.ano,
+          "ambos"
+        );
+      } else {
+        // Se não especificou período, usa mês anterior
+        await RelatorioMensalHandler.executarMesAnterior(userId, usuarioId);
+      }
+    },
+  },
+
+  // ===============================
+  // 📊 RELATÓRIO MENSAL - MÊS ANTERIOR
+  // Ex: "relatório do mês passado", "relatório mês anterior"
+  // ===============================
+  {
+    nome: "relatorio_mes_anterior",
+    match: ({ mensagemNormalizada }) =>
+      /\b(relatorio|relatório)\b/.test(mensagemNormalizada) &&
+      /\b(passado|anterior|ultimo|último)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId }) => {
+      const { RelatorioMensalHandler } = await require(
+        "../services/handlers/relatorios/RelatorioMensalHandler"
+      );
+
+      await RelatorioMensalHandler.executarMesAnterior(userId, usuarioId);
+    },
+  },
+
+  // ===============================
+  // 📊 RELATÓRIO MENSAL - MÊS ATUAL
+  // Ex: "relatório deste mês", "relatório do mês atual"
+  // ===============================
+  {
+    nome: "relatorio_mes_atual",
+    match: ({ mensagemNormalizada }) =>
+      /\b(relatorio|relatório)\b/.test(mensagemNormalizada) &&
+      /\b(deste|desse|atual|corrente|agora)\b/.test(mensagemNormalizada),
+
+    executar: async ({ userId, usuarioId }) => {
+      const { RelatorioMensalHandler } = await require(
+        "../services/handlers/relatorios/RelatorioMensalHandler"
+      );
+
+      await RelatorioMensalHandler.executarMesAtual(userId, usuarioId);
+    },
+  },
 ];
