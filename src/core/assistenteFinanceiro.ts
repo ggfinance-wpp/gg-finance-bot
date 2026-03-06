@@ -244,6 +244,20 @@ export class AssistenteFinanceiro {
           await PerfilHandler.executar(userId, usuario.id);
           break;
 
+        case "relatorio_mensal":
+          processou = true;
+          const { RelatorioMensalHandler } = await import(
+            "../services/handlers/relatorios/RelatorioMensalHandler.js"
+          );
+          await RelatorioMensalHandler.executar(
+            userId,
+            usuario.id,
+            intent.mes ?? undefined,
+            intent.ano ?? undefined,
+            "ambos"
+          );
+          break;
+
         case "ajuda":
           processou = true;
           await EnviadorWhatsApp.enviar(
@@ -254,7 +268,8 @@ export class AssistenteFinanceiro {
             "• Ver *saldo*\n" +
             "• Ver *gastos por categoria*\n" +
             "• Criar *lembrete*\n" +
-            "• Criar *categoria*"
+            "• Criar *categoria*\n" +
+            "• Ver *relatório mensal*"
           );
           break;
       }
