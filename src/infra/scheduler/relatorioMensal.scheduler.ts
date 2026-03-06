@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { RelatorioMensalService } from "../../services/RelatorioMensalService";
 import { logger } from "../../utils/logger";
+const CRON_SCHEDULE_RESUMO = process.env.CRON_SCHEDULE_RESUMO || "5 9 1 * *"; // Todo dia 1 de cada mês às 09:00
 
 export class RelatorioMensalScheduler {
   /**
@@ -11,7 +12,7 @@ export class RelatorioMensalScheduler {
     // Cron: 0 9 1 * *
     // Minuto: 0, Hora: 9, Dia do mês: 1, Mês: *, Dia da semana: *
     cron.schedule(
-      "0 9 1 * *",
+      CRON_SCHEDULE_RESUMO,
       async () => {
         logger.info("📊 Executando scheduler de relatórios mensais...");
         
