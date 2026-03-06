@@ -246,7 +246,7 @@ export class AssistenteFinanceiro {
 
         case "relatorio_mensal":
           processou = true;
-          const { RelatorioMensalHandler } = await import(
+          const { RelatorioMensalHandler } = await require(
             "../services/handlers/relatorios/RelatorioMensalHandler.js"
           );
           await RelatorioMensalHandler.executar(
